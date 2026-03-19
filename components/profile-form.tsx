@@ -57,7 +57,7 @@ export default function ProfileForm({
     await new Promise((resolve) => setTimeout(resolve, 1500));
     
     const response = await fetch(`/api/companies/${companyId}/rebuild`, {
-      method: "POST",setBusy
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form)
     });
