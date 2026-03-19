@@ -164,14 +164,14 @@ export default async function DashboardPage({
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <Card>
+       <Card className="border border-slate-200 shadow-sm">
           <CardHeader>
             <CardTitle>Checklist cliente</CardTitle>
             <CardDescription>
               Aggiorna il profilo e rigenera baseline, SoA, documenti e rischi.
             </CardDescription>
           </CardHeader>
-          <CardBody>
+          <CardBody className="space-y-4">
             <ProfileForm
               companyId={company.id}
               profile={company.profile ?? EMPTY_PROFILE}
@@ -179,7 +179,7 @@ export default async function DashboardPage({
           </CardBody>
         </Card>
 
-        <Card>
+        <Card className="border border-slate-200 shadow-sm">
           <CardHeader>
             <CardTitle>Upload e analisi documenti</CardTitle>
             <CardDescription>
@@ -187,7 +187,7 @@ export default async function DashboardPage({
               dal contenuto.
             </CardDescription>
           </CardHeader>
-          <CardBody>
+          <CardBody className="space-y-4">
             <UploadForm companyId={company.id} />
             <div className="mt-4 grid gap-2">
               {(company.uploads ?? []).map((upload) => (
