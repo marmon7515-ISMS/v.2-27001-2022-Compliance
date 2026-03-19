@@ -118,7 +118,7 @@ export default function ProfileForm({
           Salva profilo
         </button>
         <button className="rounded-xl bg-slate-900 px-3 py-2 text-sm text-white" disabled={busy} onClick={rebuild}>
-          Rigenera baseline cliente
+          {busy ? "Caricamento..." : "Rigenera baseline cliente"}
         </button>
       </div>
     </div>
