@@ -76,7 +76,40 @@ export default async function DashboardPage({
               </div>
             </div>
 
-            <div className="grid gap-3 rounded-2xl border p-4 text-sm lg:min-w-[360px]">
+            <div className="rounded-2xl border bg-white p-5 shadow-sm lg:min-w-[320px]">
+  <div className="mb-4">
+    <div className="text-xs text-slate-500">Utente</div>
+    <div className="text-lg font-semibold text-slate-900">{session.username}</div>
+  </div>
+
+  <div className="mb-4">
+    <div className="text-xs text-slate-500">Ruolo</div>
+    <div className="text-sm font-medium text-slate-700">{session.role}</div>
+  </div>
+
+  <div className="mb-4">
+    <div className="mb-2 text-xs text-slate-500">Clienti</div>
+    <div className="flex flex-wrap gap-2">
+      {data.companies.map((item) => (
+        <Link
+          key={item.id}
+          className={`rounded-full px-3 py-1 text-xs border ${
+            item.id === company.id
+              ? "bg-slate-900 text-white"
+              : "bg-white hover:bg-slate-100"
+          }`}
+          href={`/dashboard?companyId=${item.id}`}
+        >
+          {item.name}
+        </Link>
+      ))}
+    </div>
+  </div>
+
+  <div className="mt-4 border-t pt-3">
+    <LogoutButton />
+  </div>
+</div>
               <div>
                 Utente: <strong>{session.username}</strong>
               </div>
