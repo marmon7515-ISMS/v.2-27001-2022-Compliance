@@ -45,9 +45,17 @@ export default async function DashboardPage({
         <CardBody>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="inline-flex rounded-full border px-3 py-1 text-xs">Workspace protetto</div>
-              <h1 className="mt-4 text-3xl font-bold">Compliance OS</h1>
-              <p className="mt-2 text-sm text-slate-500">
+              <div className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
+  Workspace protetto
+</div>
+
+<h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900">
+  Compliance OS
+</h1>
+
+<p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+  Login protetto, multi-tenant, profiling cliente, motore regole, upload documenti e export DOCX/PDF.
+</p>
                 <div className="grid grid-cols-3 gap-4 my-6">
   <div className="p-4 rounded-xl bg-slate-100 text-center">
     <div className="text-sm text-gray-500">Controlli</div>
