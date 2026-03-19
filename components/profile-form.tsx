@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation"
 
 type Profile = {
   cloudServices: boolean;
@@ -36,6 +37,7 @@ export default function ProfileForm({
   const [form, setForm] = useState(profile);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const router = useRouter(); 
 
   async function saveOnly() {
     setBusy(true);
