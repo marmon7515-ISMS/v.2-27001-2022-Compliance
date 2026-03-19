@@ -57,7 +57,7 @@ export default async function DashboardPage({
   Login protetto, multi-tenant, profiling cliente, motore regole, upload documenti e export DOCX/PDF.
 </p>
                 <div className="grid grid-cols-3 gap-4 my-6">
-  <div className="p-4 rounded-xl bg-slate-100 text-center">
+  <div className="p-4 rounded-xl bg-slate-100 text-center"></div>
     <div className="text-sm text-gray-500">Controlli</div>
     <div className="text-2xl font-bold">{applicableControls.length}</div>
   </div>
