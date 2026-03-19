@@ -62,7 +62,7 @@ export default function ProfileForm({
     setMessage(payload.message ?? payload.error ?? "");
 
     if (response.ok) {
-      window.location.reload();
+      router.refresh();
     }
     setBusy(false);
   }
