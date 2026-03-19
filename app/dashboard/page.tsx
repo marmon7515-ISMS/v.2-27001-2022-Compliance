@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx
 import Link from "next/link";
 import { requireSession } from "@/lib/auth";
 import { getDashboardData } from "@/lib/dashboard";
@@ -43,42 +44,45 @@ export default async function DashboardPage({
     <main className="mx-auto max-w-7xl space-y-6 p-6">
       <Card>
         <CardBody>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex-1">
               <div className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
-  Workspace protetto
-</div>
+                Workspace protetto
+              </div>
 
-<h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900">
-  Compliance OS
-</h1>
+              <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900">
+                Compliance OS
+              </h1>
 
-<p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
-  Login protetto, multi-tenant, profiling cliente, motore regole, upload documenti e export DOCX/PDF.
-</p>
-                <div className="grid grid-cols-3 gap-4 my-6">
-  <div className="p-4 rounded-xl bg-slate-100 text-center"></div>
-    <div className="text-sm text-gray-500">Controlli</div>
-    <div className="text-2xl font-bold">{applicableControls.length}</div>
-  </div>
-
-  <div className="p-4 rounded-xl bg-slate-100 text-center">
-    <div className="text-sm text-gray-500">Documenti</div>
-    <div className="text-2xl font-bold">{suggestedDocuments.length}</div>
-  </div>
-
-  <div className="p-4 rounded-xl bg-slate-100 text-center">
-    <div className="text-sm text-gray-500">Rischi</div>
-    <div className="text-2xl font-bold">{company.risks.length}</div>
-  </div>
-</div>
+              <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
                 Login protetto, multi-tenant, profiling cliente, motore regole, upload documenti e export DOCX/PDF.
               </p>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                <div className="rounded-xl bg-slate-100 p-4 text-center">
+                  <div className="text-sm text-gray-500">Controlli</div>
+                  <div className="text-2xl font-bold">{applicableControls.length}</div>
+                </div>
+
+                <div className="rounded-xl bg-slate-100 p-4 text-center">
+                  <div className="text-sm text-gray-500">Documenti</div>
+                  <div className="text-2xl font-bold">{suggestedDocuments.length}</div>
+                </div>
+
+                <div className="rounded-xl bg-slate-100 p-4 text-center">
+                  <div className="text-sm text-gray-500">Rischi</div>
+                  <div className="text-2xl font-bold">{company.risks.length}</div>
+                </div>
+              </div>
             </div>
 
             <div className="grid gap-3 rounded-2xl border p-4 text-sm lg:min-w-[360px]">
-              <div>Utente: <strong>{session.username}</strong></div>
-              <div>Ruolo: <strong>{session.role}</strong></div>
+              <div>
+                Utente: <strong>{session.username}</strong>
+              </div>
+              <div>
+                Ruolo: <strong>{session.role}</strong>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {data.companies.map((item) => (
                   <Link
@@ -125,7 +129,9 @@ export default async function DashboardPage({
               {(company.uploads ?? []).map((upload) => (
                 <div key={upload.id} className="rounded-xl border p-3 text-sm">
                   <div className="font-medium">{upload.name}</div>
-                  <div className="text-slate-500">{upload.mimeType} · {upload.sizeBytes} bytes</div>
+                  <div className="text-slate-500">
+                    {upload.mimeType} · {upload.sizeBytes} bytes
+                  </div>
                   <div className="mt-1 text-xs text-slate-500">{upload.analysisNotes}</div>
                 </div>
               ))}
@@ -193,7 +199,9 @@ export default async function DashboardPage({
               {applicableControls.slice(0, 20).map((control) => (
                 <div key={control.id} className="rounded-xl border p-3">
                   <div className="flex items-center justify-between gap-3">
-                    <strong>{control.baselineControl.code} · {control.baselineControl.title}</strong>
+                    <strong>
+                      {control.baselineControl.code} · {control.baselineControl.title}
+                    </strong>
                     <Badge>{control.status}</Badge>
                   </div>
                   <div className="mt-1 text-xs text-slate-500">{control.justification}</div>
@@ -216,7 +224,9 @@ export default async function DashboardPage({
                 excludedControls.map((control) => (
                   <div key={control.id} className="rounded-xl border p-3">
                     <div className="flex items-center justify-between gap-3">
-                      <strong>{control.baselineControl.code} · {control.baselineControl.title}</strong>
+                      <strong>
+                        {control.baselineControl.code} · {control.baselineControl.title}
+                      </strong>
                       <Badge>{control.status}</Badge>
                     </div>
                     <div className="mt-1 text-xs text-slate-500">{control.justification}</div>
@@ -244,7 +254,8 @@ export default async function DashboardPage({
                   </div>
                   <div className="mt-1 text-sm text-slate-500">{risk.asset}</div>
                   <div className="mt-1 text-xs text-slate-500">
-                    Score inerente {score(risk.likelihood, risk.impact)} · residuo {score(risk.residualLikelihood, risk.residualImpact)}
+                    Score inerente {score(risk.likelihood, risk.impact)} · residuo{" "}
+                    {score(risk.residualLikelihood, risk.residualImpact)}
                   </div>
                 </div>
               ))}
