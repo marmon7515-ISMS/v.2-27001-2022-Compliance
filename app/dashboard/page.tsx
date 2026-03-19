@@ -48,6 +48,22 @@ export default async function DashboardPage({
               <div className="inline-flex rounded-full border px-3 py-1 text-xs">Workspace protetto</div>
               <h1 className="mt-4 text-3xl font-bold">Compliance OS</h1>
               <p className="mt-2 text-sm text-slate-500">
+                <div className="grid grid-cols-3 gap-4 my-6">
+  <div className="p-4 rounded-xl bg-slate-100 text-center">
+    <div className="text-sm text-gray-500">Controlli</div>
+    <div className="text-2xl font-bold">{applicableControls.length}</div>
+  </div>
+
+  <div className="p-4 rounded-xl bg-slate-100 text-center">
+    <div className="text-sm text-gray-500">Documenti</div>
+    <div className="text-2xl font-bold">{suggestedDocuments.length}</div>
+  </div>
+
+  <div className="p-4 rounded-xl bg-slate-100 text-center">
+    <div className="text-sm text-gray-500">Rischi</div>
+    <div className="text-2xl font-bold">{company.risks.length}</div>
+  </div>
+</div>
                 Login protetto, multi-tenant, profiling cliente, motore regole, upload documenti e export DOCX/PDF.
               </p>
             </div>
