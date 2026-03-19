@@ -61,7 +61,7 @@ export default function ProfileForm({
     });
 
     const payload = (await response.json()) as { message?: string; error?: string };
-    setMessage(payload.message ?? payload.error ?? "");
+    
     const text = payload.message ?? payload.error ?? "";
     setMessage(text);
 
