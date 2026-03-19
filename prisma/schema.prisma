@@ -1,0 +1,198 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  COMPLIANCE_MANAGER
+  AUDITOR
+  CLIENT_ADMIN
+  CONTRIBUTOR
+  VIEWER
+}
+
+enum ControlStatus {
+  PLANNED
+  IN_PROGRESS
+  IMPLEMENTED
+  APPROVED
+  NOT_APPLICABLE
+}
+
+enum RiskStatus {
+  OPEN
+  IN_TREATMENT
+  ACCEPTED
+  CLOSED
+}
+
+enum DocumentStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  NOT_REQUIRED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  username     String   @unique
+  email        String?  @unique
+  passwordHash String
+  role         UserRole
+  active       Boolean  @default(true)
+  companyId    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Company {
+  id        String              @id @default(cuid())
+  name      String
+  framework String
+  industry  String?
+  status    String              @default("ACTIVE")
+  ownerName String?
+  profile   CompanyProfile?
+  controls  CompanyControl[]
+  risks     CompanyRisk[]
+  documents CompanyDocument[]
+  uploads   CompanyUpload[]
+  tasks     Task[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+}
+
+model CompanyProfile {
+  id                    String   @id @default(cuid())
+  companyId             String   @unique
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  cloudServices         Boolean  @default(false)
+  softwareDevelopment   Boolean  @default(false)
+  suppliersCritical     Boolean  @default(false)
+  remoteWorkforce       Boolean  @default(false)
+  physicalOfficeControl Boolean  @default(false)
+  criticalProcesses     Boolean  @default(false)
+  personalData          Boolean  @default(false)
+  regulatedSector       Boolean  @default(false)
+  customerDescription   String   @default("")
+  uploadedContext       String   @default("")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model BaselineControl {
+  id                String           @id @default(cuid())
+  code              String           @unique
+  title             String
+  domain            String
+  defaultApplicable Boolean          @default(true)
+  rationale         String
+  controls          CompanyControl[]
+}
+
+model CompanyControl {
+  id                String          @id @default(cuid())
+  companyId         String
+  baselineControlId String
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  baselineControl   BaselineControl @relation(fields: [baselineControlId], references: [id], onDelete: Cascade)
+  ownerName         String?
+  status            ControlStatus   @default(PLANNED)
+  applicable        Boolean         @default(true)
+  justification     String          @default("")
+  evidence          String          @default("")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([companyId, baselineControlId])
+}
+
+model BaselineRisk {
+  id            String @id @default(cuid())
+  key           String @unique
+  title         String
+  category      String
+  asset         String
+  threat        String
+  vulnerability String
+  likelihood    Int
+  impact        Int
+  treatment     String
+  trigger       String
+}
+
+model CompanyRisk {
+  id                 String     @id @default(cuid())
+  companyId          String
+  company            Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title              String
+  category           String
+  asset              String
+  threat             String
+  vulnerability      String
+  likelihood         Int
+  impact             Int
+  residualLikelihood Int
+  residualImpact     Int
+  treatment          String
+  status             RiskStatus @default(OPEN)
+  ownerName          String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+model BaselineDocument {
+  id        String  @id @default(cuid())
+  key       String  @unique
+  name      String
+  category  String
+  mandatory Boolean @default(false)
+  trigger   String
+}
+
+model CompanyDocument {
+  id        String         @id @default(cuid())
+  companyId String
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  category  String
+  required  Boolean        @default(true)
+  reason    String         @default("")
+  status    DocumentStatus @default(DRAFT)
+  ownerName String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model CompanyUpload {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  mimeType      String
+  sizeBytes     Int
+  extractedText String   @default("")
+  analysisNotes String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Task {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title     String
+  assignee  String?
+  dueDate   DateTime?
+  done      Boolean  @default(false)
+  priority  String   @default("Medium")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
