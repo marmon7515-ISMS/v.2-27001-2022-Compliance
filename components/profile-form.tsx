@@ -54,8 +54,10 @@ export default function ProfileForm({
 
   async function rebuild() {
     setBusy(true);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    
     const response = await fetch(`/api/companies/${companyId}/rebuild`, {
-      method: "POST",
+      method: "POST",setBusy
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form)
     });
