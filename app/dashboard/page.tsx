@@ -1,7 +1,10 @@
-// file: app/dashboard/page.tsx
+// app/dashboard/page.tsx
 import Link from "next/link";
+import { DocumentStatus, RiskStatus } from "@prisma/client";
 import { requireSession } from "@/lib/auth";
 import { getDashboardData } from "@/lib/dashboard";
+import { score } from "@/lib/rules";
+import { EMPTY_PROFILE } from "@/lib/profile-defaults";
 import {
   Badge,
   Card,
@@ -13,7 +16,64 @@ import {
 import LogoutButton from "@/components/logout-button";
 import ProfileForm from "@/components/profile-form";
 import UploadForm from "@/components/upload-form";
-import { score } from "@/lib/rules";
+
+function statusBadgeClass(status: string) {
+  const normalized = status.toUpperCase();
+
+  if (normalized.includes("APPROVED") || normalized.includes("IMPLEMENTED")) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+
+  if (normalized.includes("DRAFT") || normalized.includes("PLANNED") || normalized.includes("OPEN")) {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+
+  if (normalized.includes("REJECTED") || normalized.includes("CLOSED")) {
+    return "border-slate-200 bg-slate-100 text-slate-700";
+  }
+
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function formatDocumentStatus(status: DocumentStatus) {
+  switch (status) {
+    case DocumentStatus.DRAFT:
+      return "Bozza";
+    case DocumentStatus.APPROVED:
+      return "Approvato";
+    default:
+      return status;
+  }
+}
+
+function formatRiskStatus(status: RiskStatus) {
+  switch (status) {
+    case RiskStatus.OPEN:
+      return "Aperto";
+    case RiskStatus.TREATMENT_PLANNED:
+      return "Trattamento pianificato";
+    case RiskStatus.CLOSED:
+      return "Chiuso";
+    default:
+      return status;
+  }
+}
+
+function riskLevelLabel(value: number) {
+  if (value >= 15) {
+    return "Critico";
+  }
+
+  if (value >= 8) {
+    return "Alto";
+  }
+
+  if (value >= 4) {
+    return "Medio";
+  }
+
+  return "Basso";
+}
 
 function StatCard({
   title,
@@ -27,12 +87,30 @@ function StatCard({
   return (
     <Card>
       <CardBody className="space-y-2">
-        <p className="text-sm font-medium text-slate-600">{title}</p>
-        <p className="text-3xl font-semibold tracking-tight text-slate-900">{value}</p>
-        <p className="text-sm text-slate-500">{subtitle}</p>
+        <p className="text-sm font-medium text-slate-500">{title}</p>
+        <p className="text-3xl font-semibold tracking-tight text-slate-950">{value}</p>
+        <p className="text-sm text-slate-600">{subtitle}</p>
       </CardBody>
     </Card>
   );
+}
+
+function SectionList({
+  items,
+  emptyText,
+}: {
+  items: React.ReactNode[];
+  emptyText: string;
+}) {
+  if (items.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+        {emptyText}
+      </div>
+    );
+  }
+
+  return <div className="space-y-3">{items}</div>;
 }
 
 export default async function DashboardPage({
@@ -46,331 +124,403 @@ export default async function DashboardPage({
 
   if (!data.selectedCompany) {
     return (
-      <main className="mx-auto max-w-7xl px-6 py-10">
-        <Card>
-          <CardBody>
-            <p className="text-sm text-slate-700">Nessun cliente disponibile.</p>
-          </CardBody>
-        </Card>
+      <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <Card>
+            <CardBody className="py-10 text-center text-slate-600">
+              Nessun cliente disponibile.
+            </CardBody>
+          </Card>
+        </div>
       </main>
     );
   }
 
   const company = data.selectedCompany;
-  const requiredDocuments = company.documents.filter((item) => item.required);
+  const profile = company.profile ?? EMPTY_PROFILE;
+
+  const suggestedDocuments = company.documents.filter((item) => item.required);
   const excludedDocuments = company.documents.filter((item) => !item.required);
+
   const applicableControls = company.controls.filter((item) => item.applicable);
   const excludedControls = company.controls.filter((item) => !item.applicable);
 
+  const approvedDocuments = company.documents.filter(
+    (item) => item.status === DocumentStatus.APPROVED,
+  ).length;
+
+  const openRisks = company.risks.filter((item) => item.status !== RiskStatus.CLOSED).length;
+  const criticalRisks = company.risks.filter((item) => score(item.likelihood, item.impact) >= 15)
+    .length;
+
+  const uploadedFiles = company.uploads ?? [];
+
   return (
-    <main className="mx-auto max-w-7xl space-y-8 px-6 py-8">
-      <section className="flex flex-col gap-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-3">
-          <Badge>Ambiente protetto</Badge>
-          <div className="space-y-2">
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
-              Dashboard conformità ISO/IEC 27001:2022
-            </h1>
-            <p className="max-w-3xl text-sm leading-6 text-slate-600">
-              Gestione clienti multi-tenant, profilo organizzativo, baseline controlli,
-              analisi documentale ed esportazione di output formali.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Badge>{company.name}</Badge>
-            <Badge>{session.username}</Badge>
-            <Badge>{session.role}</Badge>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          {data.companies.map((item) => {
-            const active = item.id === company.id;
-
-            return (
-              <Link
-                key={item.id}
-                href={`/dashboard?companyId=${item.id}`}
-                className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
-                  active
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                {item.name}
-              </Link>
-            );
-          })}
-          <LogoutButton />
-        </div>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          title="Controlli applicabili"
-          value={String(applicableControls.length)}
-          subtitle="Controlli inclusi nella SoA"
-        />
-        <StatCard
-          title="Documenti richiesti"
-          value={String(requiredDocuments.length)}
-          subtitle="Derivati da baseline e profilo"
-        />
-        <StatCard
-          title="Rischi censiti"
-          value={String(company.risks.length)}
-          subtitle="Elementi presenti nel registro rischi"
-        />
-        <StatCard
-          title="Documenti caricati"
-          value={String((company.uploads ?? []).length)}
-          subtitle="File attualmente associati al cliente"
-        />
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <CardTitle>Checklist cliente</CardTitle>
-                <CardDescription>
-                  Aggiorna il profilo organizzativo e rigenera baseline, SoA,
-                  documenti richiesti e registro dei rischi.
-                </CardDescription>
-              </div>
-              <Badge tone="warning">Azione operativa</Badge>
-            </div>
-          </CardHeader>
-          <CardBody>
-            <ProfileForm
-              companyId={company.id}
-              profile={company.profile}
-            />
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <CardTitle>Caricamento e analisi documenti</CardTitle>
-                <CardDescription>
-                  Carica file del cliente e aggiorna il contesto con segnali
-                  estratti dai contenuti disponibili.
-                </CardDescription>
-              </div>
-              <Badge tone="default">
-                {(company.uploads ?? []).length} file
+    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        <header className="rounded-3xl bg-slate-950 px-6 py-6 text-white shadow-sm sm:px-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-3">
+              <Badge className="border-white/10 bg-white/10 text-white">
+                Workspace protetto
               </Badge>
+
+              <div className="space-y-2">
+                <h1 className="text-3xl font-semibold tracking-tight">Compliance OS</h1>
+                <p className="max-w-3xl text-sm leading-6 text-slate-300">
+                  Dashboard ISO/IEC 27001:2022 per profiling cliente, baseline controlli,
+                  documenti, rischi, upload e export operativi.
+                </p>
+              </div>
             </div>
-          </CardHeader>
-          <CardBody className="space-y-5">
-            <UploadForm companyId={company.id} />
 
-            {(company.uploads ?? []).length > 0 ? (
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Ultimi documenti caricati
-                </h3>
-                <ul className="space-y-3">
-                  {(company.uploads ?? []).map((upload) => (
-                    <li
-                      key={upload.id}
-                      className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-slate-900">
-                            {upload.name}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {upload.mimeType} · {upload.sizeBytes} byte
-                          </p>
-                        </div>
-                        <Badge tone="success">Caricato</Badge>
-                      </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Utente</p>
+                <p className="mt-1 text-sm font-medium text-white">{session.username}</p>
+              </div>
 
-                      {upload.analysisNotes ? (
-                        <p className="mt-3 text-sm leading-6 text-slate-600">
-                          {upload.analysisNotes}
-                        </p>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Ruolo</p>
+                <p className="mt-1 text-sm font-medium capitalize text-white">{session.role}</p>
               </div>
-            ) : (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                Nessun documento caricato per questo cliente.
-              </div>
-            )}
-          </CardBody>
-        </Card>
-      </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Documenti da generare</CardTitle>
-            <CardDescription>
-              Derivati dalla baseline generale e dal profilo del cliente.
-            </CardDescription>
-          </CardHeader>
-          <CardBody className="space-y-3">
-            {requiredDocuments.map((document) => (
-              <div
-                key={document.id}
-                className="rounded-xl border border-slate-200 p-4"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-slate-900">{document.name}</p>
-                  <Badge tone="success">{document.status}</Badge>
-                </div>
-                <p className="mt-2 text-sm text-slate-600">{document.category}</p>
-                <p className="mt-1 text-sm leading-6 text-slate-500">{document.reason}</p>
-              </div>
-            ))}
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Documenti non richiesti</CardTitle>
-            <CardDescription>
-              Esclusi in base al profilo attuale del cliente.
-            </CardDescription>
-          </CardHeader>
-          <CardBody className="space-y-3">
-            {excludedDocuments.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                Nessun documento escluso.
-              </div>
-            ) : (
-              excludedDocuments.map((document) => (
-                <div
-                  key={document.id}
-                  className="rounded-xl border border-slate-200 p-4"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-slate-900">{document.name}</p>
-                    <Badge>{document.status}</Badge>
-                  </div>
-                  <p className="mt-2 text-sm text-slate-600">{document.category}</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">
-                    {document.reason}
-                  </p>
-                </div>
-              ))
-            )}
-          </CardBody>
-        </Card>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>SoA applicabile</CardTitle>
-            <CardDescription>
-              Controlli richiesti per questo cliente.
-            </CardDescription>
-          </CardHeader>
-          <CardBody className="space-y-3">
-            {applicableControls.slice(0, 20).map((control) => (
-              <div
-                key={control.id}
-                className="rounded-xl border border-slate-200 p-4"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-slate-900">
-                    {control.baselineControl.code} · {control.baselineControl.title}
-                  </p>
-                  <Badge tone="success">{control.status}</Badge>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {control.justification}
-                </p>
-              </div>
-            ))}
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>SoA non applicabile</CardTitle>
-            <CardDescription>
-              Controlli escludibili con relativa motivazione.
-            </CardDescription>
-          </CardHeader>
-          <CardBody className="space-y-3">
-            {excludedControls.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                Nessun controllo escluso.
-              </div>
-            ) : (
-              excludedControls.map((control) => (
-                <div
-                  key={control.id}
-                  className="rounded-xl border border-slate-200 p-4"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-slate-900">
-                      {control.baselineControl.code} · {control.baselineControl.title}
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 sm:col-span-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                      Cliente attivo
                     </p>
-                    <Badge>{control.status}</Badge>
+                    <p className="mt-1 text-sm font-medium text-white">{company.name}</p>
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {control.justification}
-                  </p>
+                  <LogoutButton />
                 </div>
-              ))
-            )}
-          </CardBody>
-        </Card>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Rischi prioritari</CardTitle>
-            <CardDescription>
-              Vista rapida dei rischi con punteggio inerente e residuo.
-            </CardDescription>
-          </CardHeader>
-          <CardBody className="space-y-3">
-            {company.topRisks.map((risk) => (
-              <div
-                key={risk.id}
-                className="rounded-xl border border-slate-200 p-4"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-slate-900">{risk.title}</p>
-                  <Badge tone="warning">{risk.scoreLabel}</Badge>
-                </div>
-                <p className="mt-2 text-sm text-slate-600">{risk.asset}</p>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Score inerente {score(risk.likelihood, risk.impact)} · residuo{" "}
-                  {score(risk.residualLikelihood, risk.residualImpact)}
-                </p>
               </div>
-            ))}
-          </CardBody>
-        </Card>
+            </div>
+          </div>
+        </header>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Esportazione</CardTitle>
-            <CardDescription>
-              Genera file DOCX o PDF pronti da condividere.
-            </CardDescription>
-          </CardHeader>
-          <CardBody className="space-y-3">
-            <ExportRow companyId={company.id} kind="soa" label="Dichiarazione di applicabilità" />
-            <ExportRow companyId={company.id} kind="risks" label="Registro dei rischi" />
-            <ExportRow companyId={company.id} kind="documents" label="Set documentale" />
-          </CardBody>
-        </Card>
-      </section>
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            subtitle={`${company.controlSummary.applicable} applicabili · ${company.controlSummary.implemented} implementati`}
+            title="Controlli"
+            value={String(company.controlSummary.total)}
+          />
+          <StatCard
+            subtitle={`${suggestedDocuments.length} richiesti · ${approvedDocuments} approvati`}
+            title="Documenti"
+            value={String(company.documentSummary.total)}
+          />
+          <StatCard
+            subtitle={`${openRisks} aperti · ${criticalRisks} critici`}
+            title="Rischi"
+            value={String(company.riskSummary.total)}
+          />
+          <StatCard
+            subtitle={`${uploadedFiles.length} file archiviati`}
+            title="Upload"
+            value={String(uploadedFiles.length)}
+          />
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle>Clienti</CardTitle>
+              <CardDescription>Seleziona il tenant su cui lavorare.</CardDescription>
+            </CardHeader>
+            <CardBody className="space-y-2">
+              {data.companies.map((item) => {
+                const active = item.id === company.id;
+
+                return (
+                  <Link
+                    key={item.id}
+                    className={[
+                      "flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition",
+                      active
+                        ? "border-slate-900 bg-slate-900 text-white"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+                    ].join(" ")}
+                    href={`/dashboard?companyId=${item.id}`}
+                  >
+                    <span className="font-medium">{item.name}</span>
+                    <span className="text-xs opacity-80">{active ? "Attivo" : "Apri"}</span>
+                  </Link>
+                );
+              })}
+            </CardBody>
+          </Card>
+
+          <div className="grid gap-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Checklist cliente</CardTitle>
+                  <CardDescription>
+                    Aggiorna il profilo e rigenera baseline, SoA, documenti e rischi.
+                  </CardDescription>
+                </CardHeader>
+                <CardBody>
+                  <ProfileForm companyId={company.id} profile={profile} />
+                </CardBody>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Upload e analisi documenti</CardTitle>
+                  <CardDescription>
+                    Carica file del cliente e aggiorna il profiling con segnali dal contenuto.
+                  </CardDescription>
+                </CardHeader>
+                <CardBody className="space-y-4">
+                  <UploadForm companyId={company.id} />
+
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold text-slate-900">Ultimi file caricati</h4>
+                    <SectionList
+                      emptyText="Nessun file caricato per questo cliente."
+                      items={uploadedFiles.map((upload) => (
+                        <div
+                          key={upload.id}
+                          className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                        >
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="space-y-1">
+                              <p className="text-sm font-medium text-slate-900">{upload.name}</p>
+                              <p className="text-xs text-slate-500">
+                                {upload.mimeType} · {upload.sizeBytes} byte
+                              </p>
+                            </div>
+                            <Badge>Caricato</Badge>
+                          </div>
+
+                          {upload.analysisNotes ? (
+                            <p className="mt-3 text-sm leading-6 text-slate-600">
+                              {upload.analysisNotes}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
+                    />
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Documenti da generare</CardTitle>
+                  <CardDescription>
+                    Derivati dalla baseline generale e dal profilo cliente.
+                  </CardDescription>
+                </CardHeader>
+                <CardBody>
+                  <SectionList
+                    emptyText="Nessun documento richiesto per il profilo attuale."
+                    items={suggestedDocuments.map((document) => (
+                      <div
+                        key={document.id}
+                        className="rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                      >
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">
+                              {document.name}
+                            </p>
+                            <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
+                              {document.category}
+                            </p>
+                          </div>
+                          <Badge className={statusBadgeClass(document.status)}>
+                            {formatDocumentStatus(document.status)}
+                          </Badge>
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-slate-600">{document.reason}</p>
+                      </div>
+                    ))}
+                  />
+                </CardBody>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Documenti non richiesti</CardTitle>
+                  <CardDescription>
+                    Esclusi in base al profilo attuale del cliente.
+                  </CardDescription>
+                </CardHeader>
+                <CardBody>
+                  <SectionList
+                    emptyText="Nessun documento escluso."
+                    items={excludedDocuments.map((document) => (
+                      <div
+                        key={document.id}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                      >
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">
+                              {document.name}
+                            </p>
+                            <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
+                              {document.category}
+                            </p>
+                          </div>
+                          <Badge className={statusBadgeClass(document.status)}>
+                            {formatDocumentStatus(document.status)}
+                          </Badge>
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-slate-600">{document.reason}</p>
+                      </div>
+                    ))}
+                  />
+                </CardBody>
+              </Card>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>SoA applicabile</CardTitle>
+                  <CardDescription>Controlli richiesti per questo cliente.</CardDescription>
+                </CardHeader>
+                <CardBody>
+                  <SectionList
+                    emptyText="Nessun controllo applicabile disponibile."
+                    items={applicableControls.map((control) => (
+                      <div
+                        key={control.id}
+                        className="rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                      >
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">
+                              {control.baselineControl.code} · {control.baselineControl.title}
+                            </p>
+                          </div>
+                          <Badge className={statusBadgeClass(control.status)}>
+                            {control.status}
+                          </Badge>
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-slate-600">
+                          {control.justification}
+                        </p>
+                      </div>
+                    ))}
+                  />
+                </CardBody>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>SoA non applicabile</CardTitle>
+                  <CardDescription>
+                    Controlli escludibili con motivazione documentata.
+                  </CardDescription>
+                </CardHeader>
+                <CardBody>
+                  <SectionList
+                    emptyText="Nessun controllo escluso."
+                    items={excludedControls.map((control) => (
+                      <div
+                        key={control.id}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                      >
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">
+                              {control.baselineControl.code} · {control.baselineControl.title}
+                            </p>
+                          </div>
+                          <Badge className={statusBadgeClass(control.status)}>
+                            {control.status}
+                          </Badge>
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-slate-600">
+                          {control.justification}
+                        </p>
+                      </div>
+                    ))}
+                  />
+                </CardBody>
+              </Card>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top rischi</CardTitle>
+                  <CardDescription>Prioritizzazione rapida per analisi e trattamento.</CardDescription>
+                </CardHeader>
+                <CardBody>
+                  <SectionList
+                    emptyText="Nessun rischio presente per questo cliente."
+                    items={company.topRisks.map((risk) => {
+                      const inherentScore = score(risk.likelihood, risk.impact);
+                      const residualScore = score(
+                        risk.residualLikelihood,
+                        risk.residualImpact,
+                      );
+
+                      return (
+                        <div
+                          key={risk.id}
+                          className="rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                        >
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">{risk.title}</p>
+                              <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
+                                Asset: {risk.asset}
+                              </p>
+                            </div>
+                            <Badge className={statusBadgeClass(risk.status)}>
+                              {riskLevelLabel(inherentScore)}
+                            </Badge>
+                          </div>
+
+                          <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+                            <p>
+                              Score inerente:{" "}
+                              <span className="font-medium text-slate-900">{inherentScore}</span>
+                            </p>
+                            <p>
+                              Score residuo:{" "}
+                              <span className="font-medium text-slate-900">{residualScore}</span>
+                            </p>
+                            <p className="sm:col-span-2">
+                              Stato:{" "}
+                              <span className="font-medium text-slate-900">
+                                {formatRiskStatus(risk.status)}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  />
+                </CardBody>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Export</CardTitle>
+                  <CardDescription>
+                    Genera file DOCX o PDF pronti da condividere.
+                  </CardDescription>
+                </CardHeader>
+                <CardBody className="space-y-3">
+                  <ExportRow companyId={company.id} kind="soa" label="Statement of Applicability" />
+                  <ExportRow companyId={company.id} kind="risks" label="Risk Register" />
+                  <ExportRow companyId={company.id} kind="documents" label="Document Set" />
+                </CardBody>
+              </Card>
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
@@ -385,22 +535,22 @@ function ExportRow({
   label: string;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-slate-200 p-4">
+    <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p className="text-sm font-medium text-slate-900">{label}</p>
-        <p className="text-xs text-slate-500">{kind.toUpperCase()}</p>
+        <p className="text-sm font-semibold text-slate-900">{label}</p>
+        <p className="text-xs text-slate-500">Formato disponibile: DOCX e PDF</p>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Link
+          className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-100"
           href={`/api/companies/${companyId}/exports/${kind}?format=docx`}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
           DOCX
         </Link>
         <Link
+          className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
           href={`/api/companies/${companyId}/exports/${kind}?format=pdf`}
-          className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
         >
           PDF
         </Link>
