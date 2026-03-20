@@ -1,27 +1,96 @@
+// file: components/ui.tsx
 "use client";
 
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
-export function Card({ children }: { children: ReactNode }) {
-  return <div className="rounded-2xl border bg-white shadow-sm">{children}</div>;
+type CardProps = {
+  children: ReactNode;
+  className?: string;
+};
+
+type TextProps = {
+  children: ReactNode;
+  className?: string;
+};
+
+function joinClasses(...classes: Array<string | undefined | false | null>) {
+  return classes.filter(Boolean).join(" ");
 }
 
-export function CardHeader({ children }: { children: ReactNode }) {
-  return <div className="border-b px-5 py-4">{children}</div>;
+export function Card({ children, className }: CardProps) {
+  return (
+    <section
+      className={joinClasses(
+        "rounded-2xl border border-slate-200 bg-white shadow-sm",
+        className,
+      )}
+    >
+      {children}
+    </section>
+  );
 }
 
-export function CardTitle({ children }: { children: ReactNode }) {
-  return <h3 className="text-lg font-semibold">{children}</h3>;
+export function CardHeader({ children, className }: TextProps) {
+  return (
+    <header
+      className={joinClasses(
+        "flex flex-col gap-2 border-b border-slate-100 px-6 py-5",
+        className,
+      )}
+    >
+      {children}
+    </header>
+  );
 }
 
-export function CardDescription({ children }: { children: ReactNode }) {
-  return <p className="mt-1 text-sm text-slate-500">{children}</p>;
+export function CardTitle({ children, className }: TextProps) {
+  return (
+    <h2
+      className={joinClasses(
+        "text-lg font-semibold tracking-tight text-slate-900",
+        className,
+      )}
+    >
+      {children}
+    </h2>
+  );
 }
 
-export function CardBody({ children }: { children: ReactNode }) {
-  return <div className="p-5">{children}</div>;
+export function CardDescription({ children, className }: TextProps) {
+  return (
+    <p className={joinClasses("text-sm leading-6 text-slate-600", className)}>
+      {children}
+    </p>
+  );
 }
 
-export function Badge({ children }: { children: ReactNode }) {
-  return <span className="inline-flex rounded-full border px-2 py-1 text-xs">{children}</span>;
+export function CardBody({ children, className }: TextProps) {
+  return <div className={joinClasses("px-6 py-5", className)}>{children}</div>;
+}
+
+type BadgeTone = "default" | "success" | "warning" | "danger";
+
+const badgeToneClasses: Record<BadgeTone, string> = {
+  default: "border-slate-200 bg-slate-100 text-slate-700",
+  success: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  warning: "border-amber-200 bg-amber-50 text-amber-700",
+  danger: "border-rose-200 bg-rose-50 text-rose-700",
+};
+
+export function Badge({
+  children,
+  className,
+  tone = "default",
+}: TextProps & { tone?: BadgeTone }) {
+  return (
+    <span
+      className={joinClasses(
+        "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium",
+        badgeToneClasses[tone],
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
 }
