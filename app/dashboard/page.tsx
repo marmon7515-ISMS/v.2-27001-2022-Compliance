@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx
+// file: app/dashboard/page.tsx
 import Link from "next/link";
 import { requireSession } from "@/lib/auth";
 import { getDashboardData } from "@/lib/dashboard";
@@ -8,18 +8,17 @@ import {
   CardBody,
   CardDescription,
   CardHeader,
-  CardTitle
+  CardTitle,
 } from "@/components/ui";
 import LogoutButton from "@/components/logout-button";
 import ProfileForm from "@/components/profile-form";
 import UploadForm from "@/components/upload-form";
 import { score } from "@/lib/rules";
-import { EMPTY_PROFILE } from "@/lib/profile-defaults";
 
 function StatCard({
   title,
   value,
-  subtitle
+  subtitle,
 }: {
   title: string;
   value: string;
@@ -27,17 +26,17 @@ function StatCard({
 }) {
   return (
     <Card>
-      <CardBody>
-        <div className="text-sm text-slate-500">{title}</div>
-        <div className="mt-2 text-3xl font-bold text-slate-900">{value}</div>
-        <div className="mt-1 text-xs text-slate-500">{subtitle}</div>
+      <CardBody className="space-y-2">
+        <p className="text-sm font-medium text-slate-600">{title}</p>
+        <p className="text-3xl font-semibold tracking-tight text-slate-900">{value}</p>
+        <p className="text-sm text-slate-500">{subtitle}</p>
       </CardBody>
     </Card>
   );
 }
 
 export default async function DashboardPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<{ companyId?: string }>;
 }) {
@@ -46,191 +45,192 @@ export default async function DashboardPage({
   const data = await getDashboardData(session, params.companyId);
 
   if (!data.selectedCompany) {
-    return <main className="p-6">Nessun cliente disponibile.</main>;
+    return (
+      <main className="mx-auto max-w-7xl px-6 py-10">
+        <Card>
+          <CardBody>
+            <p className="text-sm text-slate-700">Nessun cliente disponibile.</p>
+          </CardBody>
+        </Card>
+      </main>
+    );
   }
 
   const company = data.selectedCompany;
-  const suggestedDocuments = company.documents.filter((item) => item.required);
+  const requiredDocuments = company.documents.filter((item) => item.required);
   const excludedDocuments = company.documents.filter((item) => !item.required);
   const applicableControls = company.controls.filter((item) => item.applicable);
   const excludedControls = company.controls.filter((item) => !item.applicable);
 
   return (
-    <main className="mx-auto max-w-7xl space-y-6 p-6">
-      <Card>
-        <CardBody>
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex-1">
-              <div className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
-                Workspace protetto
-              </div>
-
-              <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900">
-                Compliance OS
-              </h1>
-
-              <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
-                Login protetto, multi-tenant, profiling cliente, motore regole,
-                upload documenti e export DOCX/PDF.
-              </p>
-
-              <div className="mt-6 grid gap-4 sm:grid-cols-3">
-                <div className="rounded-xl bg-slate-100 p-4 text-center">
-                  <div className="text-sm text-slate-500">Controlli</div>
-                  <div className="text-2xl font-bold text-slate-900">
-                    {applicableControls.length}
-                  </div>
-                </div>
-
-                <div className="rounded-xl bg-slate-100 p-4 text-center">
-                  <div className="text-sm text-slate-500">Documenti</div>
-                  <div className="text-2xl font-bold text-slate-900">
-                    {suggestedDocuments.length}
-                  </div>
-                </div>
-
-                <div className="rounded-xl bg-slate-100 p-4 text-center">
-                  <div className="text-sm text-slate-500">Rischi</div>
-                  <div className="text-2xl font-bold text-slate-900">
-                    {company.risks.length}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:min-w-[320px]">
-              <div className="mb-4">
-                <div className="text-xs text-slate-500">Utente</div>
-                <div className="text-lg font-semibold text-slate-900">
-                  {session.username}
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <div className="text-xs text-slate-500">Ruolo</div>
-                <div className="text-sm font-medium text-slate-700">
-                  {session.role}
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <div className="mb-2 text-xs text-slate-500">Clienti</div>
-                <div className="flex flex-wrap gap-2">
-                  {data.companies.map((item) => (
-                    <Link
-                      key={item.id}
-                      className={`rounded-full border px-3 py-1 text-xs ${
-                        item.id === company.id
-                          ? "bg-slate-900 text-white"
-                          : "bg-white text-slate-700 hover:bg-slate-100"
-                      }`}
-                      href={`/dashboard?companyId=${item.id}`}
-                    >
-                      {item.name}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-4 border-t border-slate-200 pt-3">
-                <LogoutButton />
-              </div>
-            </div>
+    <main className="mx-auto max-w-7xl space-y-8 px-6 py-8">
+      <section className="flex flex-col gap-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:flex-row lg:items-end lg:justify-between">
+        <div className="space-y-3">
+          <Badge>Ambiente protetto</Badge>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
+              Dashboard conformità ISO/IEC 27001:2022
+            </h1>
+            <p className="max-w-3xl text-sm leading-6 text-slate-600">
+              Gestione clienti multi-tenant, profilo organizzativo, baseline controlli,
+              analisi documentale ed esportazione di output formali.
+            </p>
           </div>
-        </CardBody>
-      </Card>
+          <div className="flex flex-wrap gap-2">
+            <Badge>{company.name}</Badge>
+            <Badge>{session.username}</Badge>
+            <Badge>{session.role}</Badge>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          {data.companies.map((item) => {
+            const active = item.id === company.id;
+
+            return (
+              <Link
+                key={item.id}
+                href={`/dashboard?companyId=${item.id}`}
+                className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+                  active
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {item.name}
+              </Link>
+            );
+          })}
+          <LogoutButton />
+        </div>
+      </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          title="Clienti"
-          value={String(data.companies.length)}
-          subtitle="tenant accessibili"
-        />
-        <StatCard
           title="Controlli applicabili"
-          value={String(company.controlSummary.applicable)}
-          subtitle={company.name}
+          value={String(applicableControls.length)}
+          subtitle="Controlli inclusi nella SoA"
         />
         <StatCard
           title="Documenti richiesti"
-          value={String(company.documentSummary.required)}
-          subtitle="da generare o completare"
+          value={String(requiredDocuments.length)}
+          subtitle="Derivati da baseline e profilo"
         />
         <StatCard
-          title="Rischi aperti"
-          value={String(company.riskSummary.open)}
-          subtitle="risk register"
+          title="Rischi censiti"
+          value={String(company.risks.length)}
+          subtitle="Elementi presenti nel registro rischi"
+        />
+        <StatCard
+          title="Documenti caricati"
+          value={String((company.uploads ?? []).length)}
+          subtitle="File attualmente associati al cliente"
         />
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-       <Card className="border border-slate-200 shadow-sm">
+      <section className="grid gap-6 xl:grid-cols-2">
+        <Card>
           <CardHeader>
-            <CardTitle>Checklist cliente</CardTitle>
-            <CardDescription>
-              Aggiorna il profilo e rigenera baseline, SoA, documenti e rischi.
-            </CardDescription>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle>Checklist cliente</CardTitle>
+                <CardDescription>
+                  Aggiorna il profilo organizzativo e rigenera baseline, SoA,
+                  documenti richiesti e registro dei rischi.
+                </CardDescription>
+              </div>
+              <Badge tone="warning">Azione operativa</Badge>
+            </div>
           </CardHeader>
-          <CardBody className="space-y-4">
+          <CardBody>
             <ProfileForm
               companyId={company.id}
-              profile={company.profile ?? EMPTY_PROFILE}
+              profile={company.profile}
             />
           </CardBody>
         </Card>
 
-        <Card className="border border-slate-200 shadow-sm">
+        <Card>
           <CardHeader>
-            <CardTitle>Upload e analisi documenti</CardTitle>
-            <CardDescription>
-              Carica file cliente e aggiorna il profiling con segnali ricavati
-              dal contenuto.
-            </CardDescription>
-          </CardHeader>
-          <CardBody className="space-y-4">
-            <UploadForm companyId={company.id} />
-            <div className="mt-4 grid gap-2">
-              {(company.uploads ?? []).map((upload) => (
-                <div key={upload.id} className="rounded-xl border p-3 text-sm">
-                  <div className="font-medium">{upload.name}</div>
-                  <div className="text-slate-500">
-                    {upload.mimeType} · {upload.sizeBytes} bytes
-                  </div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    {upload.analysisNotes}
-                  </div>
-                </div>
-              ))}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle>Caricamento e analisi documenti</CardTitle>
+                <CardDescription>
+                  Carica file del cliente e aggiorna il contesto con segnali
+                  estratti dai contenuti disponibili.
+                </CardDescription>
+              </div>
+              <Badge tone="default">
+                {(company.uploads ?? []).length} file
+              </Badge>
             </div>
+          </CardHeader>
+          <CardBody className="space-y-5">
+            <UploadForm companyId={company.id} />
+
+            {(company.uploads ?? []).length > 0 ? (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Ultimi documenti caricati
+                </h3>
+                <ul className="space-y-3">
+                  {(company.uploads ?? []).map((upload) => (
+                    <li
+                      key={upload.id}
+                      className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-slate-900">
+                            {upload.name}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {upload.mimeType} · {upload.sizeBytes} byte
+                          </p>
+                        </div>
+                        <Badge tone="success">Caricato</Badge>
+                      </div>
+
+                      {upload.analysisNotes ? (
+                        <p className="mt-3 text-sm leading-6 text-slate-600">
+                          {upload.analysisNotes}
+                        </p>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                Nessun documento caricato per questo cliente.
+              </div>
+            )}
           </CardBody>
         </Card>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Documenti da generare</CardTitle>
             <CardDescription>
-              Derivati dalla baseline generale e dal profilo cliente
+              Derivati dalla baseline generale e dal profilo del cliente.
             </CardDescription>
           </CardHeader>
-          <CardBody>
-            <div className="grid gap-3">
-              {suggestedDocuments.map((document) => (
-                <div key={document.id} className="rounded-xl border p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <strong>{document.name}</strong>
-                    <Badge>{document.status}</Badge>
-                  </div>
-                  <div className="mt-1 text-sm text-slate-500">
-                    {document.category}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    {document.reason}
-                  </div>
+          <CardBody className="space-y-3">
+            {requiredDocuments.map((document) => (
+              <div
+                key={document.id}
+                className="rounded-xl border border-slate-200 p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm font-medium text-slate-900">{document.name}</p>
+                  <Badge tone="success">{document.status}</Badge>
                 </div>
-              ))}
-            </div>
+                <p className="mt-2 text-sm text-slate-600">{document.category}</p>
+                <p className="mt-1 text-sm leading-6 text-slate-500">{document.reason}</p>
+              </div>
+            ))}
           </CardBody>
         </Card>
 
@@ -238,61 +238,60 @@ export default async function DashboardPage({
           <CardHeader>
             <CardTitle>Documenti non richiesti</CardTitle>
             <CardDescription>
-              Esclusi in base al profilo attuale
+              Esclusi in base al profilo attuale del cliente.
             </CardDescription>
           </CardHeader>
-          <CardBody>
-            <div className="grid gap-3">
-              {excludedDocuments.length === 0 ? (
-                <div className="rounded-xl border p-3 text-sm">
-                  Nessun documento escluso.
-                </div>
-              ) : (
-                excludedDocuments.map((document) => (
-                  <div key={document.id} className="rounded-xl border p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <strong>{document.name}</strong>
-                      <Badge>{document.status}</Badge>
-                    </div>
-                    <div className="mt-1 text-sm text-slate-500">
-                      {document.category}
-                    </div>
-                    <div className="mt-1 text-xs text-slate-500">
-                      {document.reason}
-                    </div>
+          <CardBody className="space-y-3">
+            {excludedDocuments.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                Nessun documento escluso.
+              </div>
+            ) : (
+              excludedDocuments.map((document) => (
+                <div
+                  key={document.id}
+                  className="rounded-xl border border-slate-200 p-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm font-medium text-slate-900">{document.name}</p>
+                    <Badge>{document.status}</Badge>
                   </div>
-                ))
-              )}
-            </div>
+                  <p className="mt-2 text-sm text-slate-600">{document.category}</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                    {document.reason}
+                  </p>
+                </div>
+              ))
+            )}
           </CardBody>
         </Card>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>SoA applicabile</CardTitle>
             <CardDescription>
-              Controlli richiesti per questo cliente
+              Controlli richiesti per questo cliente.
             </CardDescription>
           </CardHeader>
-          <CardBody>
-            <div className="grid gap-3">
-              {applicableControls.slice(0, 20).map((control) => (
-                <div key={control.id} className="rounded-xl border p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <strong>
-                      {control.baselineControl.code} ·{" "}
-                      {control.baselineControl.title}
-                    </strong>
-                    <Badge>{control.status}</Badge>
-                  </div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    {control.justification}
-                  </div>
+          <CardBody className="space-y-3">
+            {applicableControls.slice(0, 20).map((control) => (
+              <div
+                key={control.id}
+                className="rounded-xl border border-slate-200 p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm font-medium text-slate-900">
+                    {control.baselineControl.code} · {control.baselineControl.title}
+                  </p>
+                  <Badge tone="success">{control.status}</Badge>
                 </div>
-              ))}
-            </div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {control.justification}
+                </p>
+              </div>
+            ))}
           </CardBody>
         </Card>
 
@@ -300,80 +299,75 @@ export default async function DashboardPage({
           <CardHeader>
             <CardTitle>SoA non applicabile</CardTitle>
             <CardDescription>
-              Controlli escludibili con motivazione
+              Controlli escludibili con relativa motivazione.
             </CardDescription>
           </CardHeader>
-          <CardBody>
-            <div className="grid gap-3">
-              {excludedControls.length === 0 ? (
-                <div className="rounded-xl border p-3 text-sm">
-                  Nessun controllo escluso.
-                </div>
-              ) : (
-                excludedControls.map((control) => (
-                  <div key={control.id} className="rounded-xl border p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <strong>
-                        {control.baselineControl.code} ·{" "}
-                        {control.baselineControl.title}
-                      </strong>
-                      <Badge>{control.status}</Badge>
-                    </div>
-                    <div className="mt-1 text-xs text-slate-500">
-                      {control.justification}
-                    </div>
+          <CardBody className="space-y-3">
+            {excludedControls.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                Nessun controllo escluso.
+              </div>
+            ) : (
+              excludedControls.map((control) => (
+                <div
+                  key={control.id}
+                  className="rounded-xl border border-slate-200 p-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm font-medium text-slate-900">
+                      {control.baselineControl.code} · {control.baselineControl.title}
+                    </p>
+                    <Badge>{control.status}</Badge>
                   </div>
-                ))
-              )}
-            </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {control.justification}
+                  </p>
+                </div>
+              ))
+            )}
           </CardBody>
         </Card>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Top rischi</CardTitle>
-            <CardDescription>Prioritizzazione rapida</CardDescription>
+            <CardTitle>Rischi prioritari</CardTitle>
+            <CardDescription>
+              Vista rapida dei rischi con punteggio inerente e residuo.
+            </CardDescription>
           </CardHeader>
-          <CardBody>
-            <div className="grid gap-3">
-              {company.topRisks.map((risk) => (
-                <div key={risk.id} className="rounded-xl border p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <strong>{risk.title}</strong>
-                    <Badge>{risk.scoreLabel}</Badge>
-                  </div>
-                  <div className="mt-1 text-sm text-slate-500">
-                    {risk.asset}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    Score inerente {score(risk.likelihood, risk.impact)} ·
-                    residuo{" "}
-                    {score(
-                      risk.residualLikelihood,
-                      risk.residualImpact
-                    )}
-                  </div>
+          <CardBody className="space-y-3">
+            {company.topRisks.map((risk) => (
+              <div
+                key={risk.id}
+                className="rounded-xl border border-slate-200 p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm font-medium text-slate-900">{risk.title}</p>
+                  <Badge tone="warning">{risk.scoreLabel}</Badge>
                 </div>
-              ))}
-            </div>
+                <p className="mt-2 text-sm text-slate-600">{risk.asset}</p>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  Score inerente {score(risk.likelihood, risk.impact)} · residuo{" "}
+                  {score(risk.residualLikelihood, risk.residualImpact)}
+                </p>
+              </div>
+            ))}
           </CardBody>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Export</CardTitle>
+            <CardTitle>Esportazione</CardTitle>
             <CardDescription>
-              Genera file DOCX o PDF pronti da condividere
+              Genera file DOCX o PDF pronti da condividere.
             </CardDescription>
           </CardHeader>
-          <CardBody>
-            <div className="grid gap-3 text-sm">
-              <ExportRow companyId={company.id} kind="soa" />
-              <ExportRow companyId={company.id} kind="risks" />
-              <ExportRow companyId={company.id} kind="documents" />
-            </div>
+          <CardBody className="space-y-3">
+            <ExportRow companyId={company.id} kind="soa" label="Dichiarazione di applicabilità" />
+            <ExportRow companyId={company.id} kind="risks" label="Registro dei rischi" />
+            <ExportRow companyId={company.id} kind="documents" label="Set documentale" />
           </CardBody>
         </Card>
       </section>
@@ -383,27 +377,33 @@ export default async function DashboardPage({
 
 function ExportRow({
   companyId,
-  kind
+  kind,
+  label,
 }: {
   companyId: string;
   kind: "soa" | "risks" | "documents";
+  label: string;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border p-3">
-      <strong className="uppercase">{kind}</strong>
+    <div className="flex items-center justify-between rounded-xl border border-slate-200 p-4">
+      <div>
+        <p className="text-sm font-medium text-slate-900">{label}</p>
+        <p className="text-xs text-slate-500">{kind.toUpperCase()}</p>
+      </div>
+
       <div className="flex gap-2">
-        <a
-          className="rounded-full border px-3 py-1"
+        <Link
           href={`/api/companies/${companyId}/exports/${kind}?format=docx`}
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
           DOCX
-        </a>
-        <a
-          className="rounded-full border px-3 py-1"
+        </Link>
+        <Link
           href={`/api/companies/${companyId}/exports/${kind}?format=pdf`}
+          className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
         >
           PDF
-        </a>
+        </Link>
       </div>
     </div>
   );
