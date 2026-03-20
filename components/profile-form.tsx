@@ -1,7 +1,8 @@
+// file: components/profile-form.tsx
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation"
+import { useRouter } from "next/navigation";
 
 type Profile = {
   cloudServices: boolean;
@@ -20,62 +21,29 @@ const labels: Record<keyof Omit<Profile, "customerDescription" | "uploadedContex
   cloudServices: "Servizi cloud",
   softwareDevelopment: "Sviluppo software interno",
   suppliersCritical: "Fornitori critici",
-  remoteWorkforce: "Lavoro remoto/ibrido",
-  physicalOfficeControl: "Controllo fisico sedi",
+  remoteWorkforce: "Lavoro remoto o ibrido",
+  physicalOfficeControl: "Controllo fisico delle sedi",
   criticalProcesses: "Processi critici",
-  personalData: "Dati personali/sensibili",
-  regulatedSector: "Settore regolamentato"
+  personalData: "Dati personali o sensibili",
+  regulatedSector: "Settore regolamentato",
+};
+
+type ProfileResponse = {
+  message?: string;
+  error?: string;
 };
 
 export default function ProfileForm({
   companyId,
-  profile
+  profile,
 }: {
   companyId: string;
   profile: Profile;
 }) {
-  const [form, setForm] = useState(profile);
+  const router = useRouter();
+  const [form, setForm] = useState<Profile>(profile);
   const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  const router = useRouter(); 
-
-  async function saveOnly() {
-    setBusy(true);
-    const response = await fetch(`/api/companies/${companyId}/profile`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form)
-    });
-
-    const payload = (await response.json()) as { message?: string; error?: string };
-    setMessage(payload.message ?? payload.error ?? "");
-    setBusy(false);
-  }
-
-  async function rebuild() {
-    setBusy(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    const response = await fetch(`/api/companies/${companyId}/rebuild`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form)
-    });
-
-    const payload = (await response.json()) as { message?: string; error?: string };
-    
-    const text = payload.message ?? payload.error ?? "";
-    setMessage(text);
-
-    if (text) {
-      setTimeout(() => setMessage(""), 2000);
-    }
-
-    if (response.ok) {
-      router.refresh();
-    }
-    setBusy(false);
-  }
+  const [busyAction, setBusyAction] = useState<"save" | "rebuild" | null>(null);
 
   const booleans: Array<keyof typeof labels> = [
     "cloudServices",
@@ -85,42 +53,177 @@ export default function ProfileForm({
     "physicalOfficeControl",
     "criticalProcesses",
     "personalData",
-    "regulatedSector"
+    "regulatedSector",
   ];
 
+  async function saveOnly() {
+    if (busyAction) {
+      return;
+    }
+
+    setBusyAction("save");
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/companies/${companyId}/profile`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
+
+      const payload = (await response.json()) as ProfileResponse;
+      setMessage(
+        payload.message ??
+          payload.error ??
+          (response.ok ? "Profilo salvato con successo." : "Salvataggio non riuscito."),
+      );
+    } catch {
+      setMessage("Errore di rete durante il salvataggio del profilo.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function rebuild() {
+    if (busyAction) {
+      return;
+    }
+
+    setBusyAction("rebuild");
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/companies/${companyId}/rebuild`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
+
+      const payload = (await response.json()) as ProfileResponse;
+      const text =
+        payload.message ??
+        payload.error ??
+        (response.ok
+          ? "Baseline cliente rigenerata con successo."
+          : "Rigenerazione non riuscita.");
+
+      setMessage(text);
+
+      if (response.ok) {
+        router.refresh();
+      }
+    } catch {
+      setMessage("Errore di rete durante la rigenerazione della baseline.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   return (
-    <div className="grid gap-4">
-      <div className="grid gap-3 md:grid-cols-2">
-        {booleans.map((key) => (
-          <label key={key} className="flex items-center justify-between rounded-xl border px-3 py-2 text-sm">
-            <span>{labels[key]}</span>
-            <input
-              checked={form[key]}
-              onChange={(event) => setForm((state) => ({ ...state, [key]: event.target.checked }))}
-              type="checkbox"
-            />
-          </label>
-        ))}
+    <div className="space-y-6">
+      <fieldset className="space-y-4">
+        <legend className="text-sm font-medium text-slate-900">
+          Contesto organizzativo
+        </legend>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {booleans.map((key) => (
+            <label
+              key={key}
+              className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800"
+            >
+              <input
+                type="checkbox"
+                checked={form[key]}
+                onChange={(event) =>
+                  setForm((state) => ({
+                    ...state,
+                    [key]: event.target.checked,
+                  }))
+                }
+                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+              />
+              <span>{labels[key]}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <div className="space-y-2">
+        <label
+          htmlFor="descrizione-cliente"
+          className="block text-sm font-medium text-slate-900"
+        >
+          Descrizione del cliente
+        </label>
+        <textarea
+          id="descrizione-cliente"
+          className="min-h-28 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+          value={form.customerDescription}
+          onChange={(event) =>
+            setForm((state) => ({
+              ...state,
+              customerDescription: event.target.value,
+            }))
+          }
+          placeholder="Descrivi attività, servizi, asset critici e perimetro operativo."
+        />
       </div>
-      <textarea
-        className="min-h-28 rounded-xl border px-3 py-2"
-        value={form.customerDescription}
-        onChange={(event) => setForm((state) => ({ ...state, customerDescription: event.target.value }))}
-        placeholder="Descrizione attività cliente"
-      />
-      <textarea
-        className="min-h-28 rounded-xl border px-3 py-2"
-        value={form.uploadedContext}
-        onChange={(event) => setForm((state) => ({ ...state, uploadedContext: event.target.value }))}
-        placeholder="Contesto ricavato da interviste, checklist o documenti caricati"
-      />
-      {message ? <div className="text-sm text-slate-600">{message}</div> : null}
+
+      <div className="space-y-2">
+        <label
+          htmlFor="contesto-raccolto"
+          className="block text-sm font-medium text-slate-900"
+        >
+          Contesto raccolto da interviste o documenti
+        </label>
+        <textarea
+          id="contesto-raccolto"
+          className="min-h-32 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+          value={form.uploadedContext}
+          onChange={(event) =>
+            setForm((state) => ({
+              ...state,
+              uploadedContext: event.target.value,
+            }))
+          }
+          placeholder="Inserisci informazioni raccolte da checklist, interviste o documenti caricati."
+        />
+      </div>
+
+      {message ? (
+        <div
+          className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+          role="status"
+          aria-live="polite"
+        >
+          {message}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-3">
-        <button className="rounded-xl border px-3 py-2 text-sm" disabled={busy} onClick={saveOnly}>
-          Salva profilo
+        <button
+          type="button"
+          className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={busyAction !== null}
+          onClick={saveOnly}
+        >
+          {busyAction === "save" ? "Salvataggio in corso..." : "Salva profilo"}
         </button>
-        <button className="rounded-xl bg-slate-900 px-3 py-2 text-sm text-white" disabled={busy} onClick={rebuild}>
-          {busy ? "Caricamento..." : "Rigenera baseline cliente"}
+
+        <button
+          type="button"
+          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={busyAction !== null}
+          onClick={rebuild}
+        >
+          {busyAction === "rebuild"
+            ? "Rigenerazione in corso..."
+            : "Rigenera baseline cliente"}
         </button>
       </div>
     </div>
