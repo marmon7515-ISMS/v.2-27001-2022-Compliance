@@ -1,4 +1,8 @@
 // app/dashboard/page.tsx
+import {
+  translateDocumentCategory,
+  translateDocumentName,
+} from "@/lib/document-translations";
 import Link from "next/link";
 import { DocumentStatus, RiskStatus } from "@prisma/client";
 import { requireSession } from "@/lib/auth";
