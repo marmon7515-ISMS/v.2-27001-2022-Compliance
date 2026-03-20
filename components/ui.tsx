@@ -1,94 +1,85 @@
-// file: components/ui.tsx
-"use client";
+// components/ui.tsx
+import type { HTMLAttributes, ReactNode } from "react";
 
-import type { ReactNode } from "react";
-
-type CardProps = {
-  children: ReactNode;
-  className?: string;
-};
-
-type TextProps = {
-  children: ReactNode;
-  className?: string;
-};
-
-function joinClasses(...classes: Array<string | undefined | false | null>) {
-  return classes.filter(Boolean).join(" ");
+function cn(...values: Array<string | false | null | undefined>) {
+  return values.filter(Boolean).join(" ");
 }
 
-export function Card({ children, className }: CardProps) {
+type BaseProps = HTMLAttributes<HTMLDivElement> & {
+  children: ReactNode;
+};
+
+export function Card({ children, className, ...props }: BaseProps) {
   return (
-    <section
-      className={joinClasses(
+    <div
+      className={cn(
         "rounded-2xl border border-slate-200 bg-white shadow-sm",
         className,
       )}
+      {...props}
     >
       {children}
-    </section>
+    </div>
   );
 }
 
-export function CardHeader({ children, className }: TextProps) {
+export function CardHeader({ children, className, ...props }: BaseProps) {
   return (
-    <header
-      className={joinClasses(
-        "flex flex-col gap-2 border-b border-slate-100 px-6 py-5",
+    <div
+      className={cn(
+        "flex flex-col gap-1 border-b border-slate-100 px-5 py-4",
         className,
       )}
+      {...props}
     >
       {children}
-    </header>
+    </div>
   );
 }
 
-export function CardTitle({ children, className }: TextProps) {
+export function CardTitle({
+  children,
+  className,
+  ...props
+}: HTMLAttributes<HTMLHeadingElement> & { children: ReactNode }) {
   return (
-    <h2
-      className={joinClasses(
-        "text-lg font-semibold tracking-tight text-slate-900",
-        className,
-      )}
+    <h3
+      className={cn("text-base font-semibold tracking-tight text-slate-950", className)}
+      {...props}
     >
       {children}
-    </h2>
+    </h3>
   );
 }
 
-export function CardDescription({ children, className }: TextProps) {
+export function CardDescription({ children, className, ...props }: BaseProps) {
   return (
-    <p className={joinClasses("text-sm leading-6 text-slate-600", className)}>
+    <p className={cn("text-sm leading-6 text-slate-600", className)} {...props}>
       {children}
     </p>
   );
 }
 
-export function CardBody({ children, className }: TextProps) {
-  return <div className={joinClasses("px-6 py-5", className)}>{children}</div>;
+export function CardBody({ children, className, ...props }: BaseProps) {
+  return (
+    <div className={cn("px-5 py-4", className)} {...props}>
+      {children}
+    </div>
+  );
 }
-
-type BadgeTone = "default" | "success" | "warning" | "danger";
-
-const badgeToneClasses: Record<BadgeTone, string> = {
-  default: "border-slate-200 bg-slate-100 text-slate-700",
-  success: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  warning: "border-amber-200 bg-amber-50 text-amber-700",
-  danger: "border-rose-200 bg-rose-50 text-rose-700",
-};
 
 export function Badge({
   children,
   className,
-  tone = "default",
-}: TextProps & { tone?: BadgeTone }) {
+  ...props
+}: HTMLAttributes<HTMLSpanElement> & { children: ReactNode }) {
   return (
     <span
-      className={joinClasses(
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium",
-        badgeToneClasses[tone],
+      className={cn(
+        "inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700",
         className,
       )}
+      {...props}
     >
       {children}
     </span>
