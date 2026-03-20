@@ -1,14 +1,20 @@
 // app/dashboard/page.tsx
-import {
-  translateDocumentCategory,
-  translateDocumentName,
-} from "@/lib/document-translations";
+
 import Link from "next/link";
-import { DocumentStatus, RiskStatus } from "@prisma/client";
+import { DocumentStatus } from "@prisma/client";
 import { requireSession } from "@/lib/auth";
 import { getDashboardData } from "@/lib/dashboard";
-import { score } from "@/lib/rules";
 import { EMPTY_PROFILE } from "@/lib/profile-defaults";
+import { score } from "@/lib/rules";
+import {
+  translateControlStatus,
+  translateDocumentCategory,
+  translateDocumentName,
+  translateDocumentStatus,
+  translateGenericLabel,
+  translateRiskLevel,
+  translateRiskStatus,
+} from "@/lib/document-translations";
 import {
   Badge,
   Card,
@@ -24,59 +30,28 @@ import UploadForm from "@/components/upload-form";
 function statusBadgeClass(status: string) {
   const normalized = status.toUpperCase();
 
-  if (normalized.includes("APPROVED") || normalized.includes("IMPLEMENTED")) {
+  if (
+    normalized.includes("APPROVED") ||
+    normalized.includes("IMPLEMENTED") ||
+    normalized.includes("CLOSED")
+  ) {
     return "border-emerald-200 bg-emerald-50 text-emerald-700";
   }
 
-  if (normalized.includes("DRAFT") || normalized.includes("PLANNED") || normalized.includes("OPEN")) {
+  if (
+    normalized.includes("DRAFT") ||
+    normalized.includes("PLANNED") ||
+    normalized.includes("OPEN") ||
+    normalized.includes("IN_PROGRESS")
+  ) {
     return "border-amber-200 bg-amber-50 text-amber-700";
   }
 
-  if (normalized.includes("REJECTED") || normalized.includes("CLOSED")) {
+  if (normalized.includes("REJECTED") || normalized.includes("NOT_APPLICABLE")) {
     return "border-slate-200 bg-slate-100 text-slate-700";
   }
 
   return "border-slate-200 bg-slate-50 text-slate-700";
-}
-
-function formatDocumentStatus(status: DocumentStatus) {
-  switch (status) {
-    case DocumentStatus.DRAFT:
-      return "Bozza";
-    case DocumentStatus.APPROVED:
-      return "Approvato";
-    default:
-      return status;
-  }
-}
-
-function formatRiskStatus(status: RiskStatus) {
-  switch (status) {
-    case RiskStatus.OPEN:
-      return "Aperto";
-    case RiskStatus.TREATMENT_PLANNED:
-      return "Trattamento pianificato";
-    case RiskStatus.CLOSED:
-      return "Chiuso";
-    default:
-      return status;
-  }
-}
-
-function riskLevelLabel(value: number) {
-  if (value >= 15) {
-    return "Critico";
-  }
-
-  if (value >= 8) {
-    return "Alto";
-  }
-
-  if (value >= 4) {
-    return "Medio";
-  }
-
-  return "Basso";
 }
 
 function StatCard({
@@ -153,7 +128,7 @@ export default async function DashboardPage({
     (item) => item.status === DocumentStatus.APPROVED,
   ).length;
 
-  const openRisks = company.risks.filter((item) => item.status !== RiskStatus.CLOSED).length;
+  const openRisks = company.risks.filter((item) => item.status !== "CLOSED").length;
   const criticalRisks = company.risks.filter((item) => score(item.likelihood, item.impact) >= 15)
     .length;
 
@@ -173,7 +148,7 @@ export default async function DashboardPage({
                 <h1 className="text-3xl font-semibold tracking-tight">Compliance OS</h1>
                 <p className="max-w-3xl text-sm leading-6 text-slate-300">
                   Dashboard ISO/IEC 27001:2022 per profiling cliente, baseline controlli,
-                  documenti, rischi, upload e export operativi.
+                  documenti, rischi, upload ed export operativi.
                 </p>
               </div>
             </div>
@@ -186,7 +161,9 @@ export default async function DashboardPage({
 
               <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Ruolo</p>
-                <p className="mt-1 text-sm font-medium capitalize text-white">{session.role}</p>
+                <p className="mt-1 text-sm font-medium text-white">
+                  {translateGenericLabel(session.role)}
+                </p>
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 sm:col-span-2">
@@ -331,14 +308,14 @@ export default async function DashboardPage({
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <p className="text-sm font-semibold text-slate-900">
-                              {document.name}
+                              {translateDocumentName(document.name)}
                             </p>
                             <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
-                              {document.category}
+                              {translateDocumentCategory(document.category)}
                             </p>
                           </div>
                           <Badge className={statusBadgeClass(document.status)}>
-                            {formatDocumentStatus(document.status)}
+                            {translateDocumentStatus(document.status)}
                           </Badge>
                         </div>
                         <p className="mt-3 text-sm leading-6 text-slate-600">{document.reason}</p>
@@ -366,14 +343,14 @@ export default async function DashboardPage({
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <p className="text-sm font-semibold text-slate-900">
-                              {document.name}
+                              {translateDocumentName(document.name)}
                             </p>
                             <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
-                              {document.category}
+                              {translateDocumentCategory(document.category)}
                             </p>
                           </div>
                           <Badge className={statusBadgeClass(document.status)}>
-                            {formatDocumentStatus(document.status)}
+                            {translateDocumentStatus(document.status)}
                           </Badge>
                         </div>
                         <p className="mt-3 text-sm leading-6 text-slate-600">{document.reason}</p>
@@ -405,7 +382,7 @@ export default async function DashboardPage({
                             </p>
                           </div>
                           <Badge className={statusBadgeClass(control.status)}>
-                            {control.status}
+                            {translateControlStatus(control.status)}
                           </Badge>
                         </div>
                         <p className="mt-3 text-sm leading-6 text-slate-600">
@@ -439,7 +416,7 @@ export default async function DashboardPage({
                             </p>
                           </div>
                           <Badge className={statusBadgeClass(control.status)}>
-                            {control.status}
+                            {translateControlStatus(control.status)}
                           </Badge>
                         </div>
                         <p className="mt-3 text-sm leading-6 text-slate-600">
@@ -456,7 +433,9 @@ export default async function DashboardPage({
               <Card>
                 <CardHeader>
                   <CardTitle>Top rischi</CardTitle>
-                  <CardDescription>Prioritizzazione rapida per analisi e trattamento.</CardDescription>
+                  <CardDescription>
+                    Prioritizzazione rapida per analisi e trattamento.
+                  </CardDescription>
                 </CardHeader>
                 <CardBody>
                   <SectionList
@@ -481,7 +460,7 @@ export default async function DashboardPage({
                               </p>
                             </div>
                             <Badge className={statusBadgeClass(risk.status)}>
-                              {riskLevelLabel(inherentScore)}
+                              {translateRiskLevel(inherentScore)}
                             </Badge>
                           </div>
 
@@ -497,7 +476,7 @@ export default async function DashboardPage({
                             <p className="sm:col-span-2">
                               Stato:{" "}
                               <span className="font-medium text-slate-900">
-                                {formatRiskStatus(risk.status)}
+                                {translateRiskStatus(risk.status)}
                               </span>
                             </p>
                           </div>
@@ -516,9 +495,21 @@ export default async function DashboardPage({
                   </CardDescription>
                 </CardHeader>
                 <CardBody className="space-y-3">
-                  <ExportRow companyId={company.id} kind="soa" label="Statement of Applicability" />
-                  <ExportRow companyId={company.id} kind="risks" label="Risk Register" />
-                  <ExportRow companyId={company.id} kind="documents" label="Document Set" />
+                  <ExportRow
+                    companyId={company.id}
+                    kind="soa"
+                    label="Dichiarazione di applicabilità"
+                  />
+                  <ExportRow
+                    companyId={company.id}
+                    kind="risks"
+                    label="Registro dei rischi"
+                  />
+                  <ExportRow
+                    companyId={company.id}
+                    kind="documents"
+                    label="Set documentale"
+                  />
                 </CardBody>
               </Card>
             </div>
@@ -542,7 +533,7 @@ function ExportRow({
     <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-sm font-semibold text-slate-900">{label}</p>
-        <p className="text-xs text-slate-500">Formato disponibile: DOCX e PDF</p>
+        <p className="text-xs text-slate-500">Formati disponibili: DOCX e PDF</p>
       </div>
 
       <div className="flex flex-wrap gap-2">
