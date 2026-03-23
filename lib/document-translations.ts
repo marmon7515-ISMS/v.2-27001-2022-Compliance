@@ -51,10 +51,18 @@ const genericTranslations: Record<string, string> = {
   ADMIN: "Amministratore",
   CONSULTANT: "Consulente",
   USER: "Utente",
+  SUPER_ADMIN: "Super amministratore",
+  COMPLIANCE_MANAGER: "Responsabile compliance",
+  CLIENT_ADMIN: "Amministratore cliente",
 };
 
+function normalizeKey(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
 export function translateDocumentName(name: string) {
-  return documentNameTranslations[name] ?? name;
+  const normalized = normalizeKey(name);
+  return documentNameTranslations[normalized] ?? name;
 }
 
 export function translateDocumentCategory(category: string) {
@@ -68,6 +76,9 @@ export function translateDocumentStatus(status: DocumentStatus | string) {
     case DocumentStatus.APPROVED:
       return "Approvato";
     default:
+      if (String(status) === "NOT_REQUIRED") {
+        return "Non richiesto";
+      }
       return String(status);
   }
 }
