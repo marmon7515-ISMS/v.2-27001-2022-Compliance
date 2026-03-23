@@ -1,200 +1,299 @@
-import { UserRole } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { BASELINE_CONTROLS, BASELINE_DOCUMENTS, BASELINE_RISKS, DEFAULT_PROFILE } from "@/lib/baseline";
-import { deriveControls, deriveDocuments, deriveRisks } from "@/lib/rules";
-import { hashPassword } from "@/lib/auth";
+// prisma/seed.ts
 
-async function seedBaseline() {
-  for (const control of BASELINE_CONTROLS) {
-    await prisma.baselineControl.upsert({
-      where: { code: control.code },
-      update: {
-        title: control.title,
-        domain: control.domain,
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+async function main() {
+  console.log("Seeding database...");
+
+  await prisma.companyUpload.deleteMany();
+  await prisma.companyDocument.deleteMany();
+  await prisma.companyRisk.deleteMany();
+  await prisma.companyControl.deleteMany();
+  await prisma.companyProfile.deleteMany();
+  await prisma.task.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.company.deleteMany();
+  await prisma.baselineDocument.deleteMany();
+  await prisma.baselineRisk.deleteMany();
+  await prisma.baselineControl.deleteMany();
+
+  await prisma.baselineControl.createMany({
+    data: [
+      {
+        code: "A.5.1",
+        title: "Policies for information security",
+        domain: "Organizational",
         defaultApplicable: true,
-        rationale: "Baseline generale; verificare applicabilità sul profilo cliente."
+        rationale: "Define and approve information security policies.",
       },
-      create: {
-        code: control.code,
-        title: control.title,
-        domain: control.domain,
+      {
+        code: "A.5.23",
+        title: "Information security for use of cloud services",
+        domain: "Technological",
         defaultApplicable: true,
-        rationale: "Baseline generale; verificare applicabilità sul profilo cliente."
-      }
-    });
-  }
-
-  for (const risk of BASELINE_RISKS) {
-    await prisma.baselineRisk.upsert({
-      where: { key: risk.key },
-      update: risk,
-      create: risk
-    });
-  }
-
-  for (const document of BASELINE_DOCUMENTS) {
-    await prisma.baselineDocument.upsert({
-      where: { key: document.key },
-      update: document,
-      create: document
-    });
-  }
-}
-
-async function seedCompany(name: string, framework: string, ownerName: string, industry: string, profile = DEFAULT_PROFILE) {
-  const company = await prisma.company.upsert({
-    where: { id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-") },
-    update: { name, framework, ownerName, industry },
-    create: { id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name, framework, ownerName, industry }
+        rationale: "Manage risks related to cloud services.",
+      },
+      {
+        code: "A.8.13",
+        title: "Information backup",
+        domain: "Technological",
+        defaultApplicable: true,
+        rationale: "Protect availability and recoverability of information.",
+      },
+    ],
   });
 
-  await prisma.companyProfile.upsert({
-    where: { companyId: company.id },
-    update: profile,
-    create: { companyId: company.id, ...profile }
+  await prisma.baselineRisk.createMany({
+    data: [
+      {
+        key: "phishing",
+        title: "Phishing su account aziendali",
+        category: "Identity",
+        asset: "Email e workspace cloud",
+        threat: "Furto credenziali",
+        vulnerability: "Bassa consapevolezza utenti",
+        likelihood: 4,
+        impact: 4,
+        residualLikelihood: 2,
+        residualImpact: 2,
+        treatment: "Mitigate",
+      },
+      {
+        key: "ransomware",
+        title: "Ransomware su endpoint",
+        category: "Endpoint",
+        asset: "Laptop e workstation",
+        threat: "Cifratura malevola",
+        vulnerability: "Patch management incompleto",
+        likelihood: 4,
+        impact: 5,
+        residualLikelihood: 2,
+        residualImpact: 3,
+        treatment: "Mitigate",
+      },
+    ],
   });
 
-  await prisma.companyControl.deleteMany({ where: { companyId: company.id } });
-  await prisma.companyRisk.deleteMany({ where: { companyId: company.id } });
-  await prisma.companyDocument.deleteMany({ where: { companyId: company.id } });
-  await prisma.companyUpload.deleteMany({ where: { companyId: company.id } });
-  await prisma.task.deleteMany({ where: { companyId: company.id } });
+  await prisma.baselineDocument.createMany({
+    data: [
+      {
+        key: "infosec-policy",
+        name: "Information Security Policy",
+        category: "POLICY",
+        required: true,
+        reason: "Documento base richiesto per l'ISMS.",
+      },
+      {
+        key: "risk-register",
+        name: "Risk Register",
+        category: "REGISTER",
+        required: true,
+        reason: "Registro dei rischi necessario per la gestione del rischio.",
+      },
+      {
+        key: "incident-response",
+        name: "Incident Response Procedure",
+        category: "PROCEDURE",
+        required: true,
+        reason: "Gestione strutturata degli incidenti di sicurezza.",
+      },
+    ],
+  });
+
+  const acme = await prisma.company.create({
+    data: {
+      id: "acme-srl",
+      name: "Acme Srl",
+      framework: "ISO 27001",
+      ownerName: "Mario Rossi",
+      industry: "Tech",
+    },
+  });
+
+  const beta = await prisma.company.create({
+    data: {
+      id: "beta-logistics",
+      name: "Beta Logistics",
+      framework: "ISO 27001",
+      ownerName: "Luigi Bianchi",
+      industry: "Logistica",
+    },
+  });
+
+  await prisma.companyProfile.createMany({
+    data: [
+      {
+        companyId: acme.id,
+        customerDescription: "PMI SaaS con lavoro ibrido",
+        industry: "Tech",
+        companySize: "SMB",
+        remoteWorkforce: true,
+        physicalOfficeControl: true,
+        softwareDevelopment: true,
+        cloudHosted: true,
+        personalDataProcessing: true,
+        specialCategoryData: false,
+        paymentProcessing: false,
+        regulatedMarket: false,
+        suppliersCritical: true,
+        businessContinuityRequired: true,
+        mobileDevicesUsed: true,
+        privilegedAccessManaged: true,
+        securityMonitoringNeeded: true,
+      },
+      {
+        companyId: beta.id,
+        customerDescription: "Azienda logistica con sedi operative",
+        industry: "Logistica",
+        companySize: "Mid-market",
+        remoteWorkforce: false,
+        physicalOfficeControl: true,
+        softwareDevelopment: false,
+        cloudHosted: true,
+        personalDataProcessing: true,
+        specialCategoryData: false,
+        paymentProcessing: false,
+        regulatedMarket: false,
+        suppliersCritical: true,
+        businessContinuityRequired: true,
+        mobileDevicesUsed: true,
+        privilegedAccessManaged: true,
+        securityMonitoringNeeded: true,
+      },
+    ],
+  });
 
   const baselineControls = await prisma.baselineControl.findMany();
-  const controls = deriveControls(profile);
-  const risks = deriveRisks(profile);
-  const documents = deriveDocuments(profile);
+  const baselineDocuments = await prisma.baselineDocument.findMany();
 
-  for (const control of controls) {
-    const baseline = baselineControls.find((item) => item.code === control.code);
-    if (!baseline) continue;
+  for (const control of baselineControls) {
+    await prisma.companyControl.create({
+      data: {
+        companyId: acme.id,
+        baselineControlId: control.id,
+        ownerName: "Mario Rossi",
+        applicable: true,
+        justification: "Applicabile al contesto aziendale",
+        evidence: "",
+        status: "PLANNED",
+      },
+    });
 
     await prisma.companyControl.create({
       data: {
-        companyId: company.id,
-        baselineControlId: baseline.id,
-        ownerName,
-        applicable: control.applicable,
-        justification: control.justification,
+        companyId: beta.id,
+        baselineControlId: control.id,
+        ownerName: "Luigi Bianchi",
+        applicable: true,
+        justification: "Applicabile al contesto aziendale",
         evidence: "",
-        status: control.applicable ? "PLANNED" : "NOT_APPLICABLE"
-      }
+        status: "PLANNED",
+      },
     });
   }
 
-  for (const risk of risks) {
-    await prisma.companyRisk.create({
-      data: {
-        companyId: company.id,
-        title: risk.title,
-        category: risk.category,
-        asset: risk.asset,
-        threat: risk.threat,
-        vulnerability: risk.vulnerability,
-        likelihood: risk.likelihood,
-        impact: risk.impact,
-        residualLikelihood: risk.residualLikelihood,
-        residualImpact: risk.residualImpact,
-        treatment: risk.treatment,
-        ownerName
-      }
-    });
-  }
-
-  for (const document of documents) {
+  for (const document of baselineDocuments) {
     await prisma.companyDocument.create({
       data: {
-        companyId: company.id,
+        companyId: acme.id,
         name: document.name,
         category: document.category,
         required: document.required,
         reason: document.reason,
-        ownerName,
-        status: document.required ? "DRAFT" : "NOT_REQUIRED"
-      }
+        ownerName: "Mario Rossi",
+        status: "DRAFT",
+      },
+    });
+
+    await prisma.companyDocument.create({
+      data: {
+        companyId: beta.id,
+        name: document.name,
+        category: document.category,
+        required: document.required,
+        reason: document.reason,
+        ownerName: "Luigi Bianchi",
+        status: "DRAFT",
+      },
     });
   }
 
-  await prisma.task.createMany({
+  await prisma.companyRisk.createMany({
     data: [
       {
-        companyId: company.id,
-        title: "Confermare perimetro e asset critici",
-        assignee: ownerName,
-        priority: "High"
+        companyId: acme.id,
+        title: "Phishing su account aziendali",
+        category: "Identity",
+        asset: "Email e workspace cloud",
+        threat: "Furto credenziali",
+        vulnerability: "Bassa consapevolezza utenti",
+        likelihood: 4,
+        impact: 4,
+        residualLikelihood: 2,
+        residualImpact: 2,
+        treatment: "Mitigate",
+        ownerName: "Mario Rossi",
+        status: "OPEN",
       },
       {
-        companyId: company.id,
-        title: "Completare checklist cliente",
-        assignee: ownerName,
-        priority: "High"
-      }
-    ]
-  });
-
-  await prisma.companyUpload.create({
-    data: {
-      companyId: company.id,
-      name: "example-context.txt",
-      mimeType: "text/plain",
-      sizeBytes: 120,
-      extractedText: profile.customerDescription,
-      analysisNotes: "Documento seed con contesto iniziale."
-    }
-  });
-
-  return company;
-}
-
-async function seedUsers(acmeId: string, betaId: string) {
-  const users = [
-    { name: "Giulia Rinaldi", username: "admin", password: "admin12345", role: UserRole.SUPER_ADMIN, companyId: "all", email: "giulia@example.local" },
-    { name: "Marco Conti", username: "acme", password: "acme12345", role: UserRole.COMPLIANCE_MANAGER, companyId: acmeId, email: "marco@example.local" },
-    { name: "Sara Villa", username: "beta", password: "beta12345", role: UserRole.CLIENT_ADMIN, companyId: betaId, email: "sara@example.local" }
-  ];
-
-  for (const user of users) {
-    await prisma.user.upsert({
-      where: { username: user.username },
-      update: {
-        name: user.name,
-        email: user.email,
-        passwordHash: await hashPassword(user.password),
-        role: user.role,
-        companyId: user.companyId,
-        active: true
+        companyId: beta.id,
+        title: "Ransomware su endpoint",
+        category: "Endpoint",
+        asset: "Laptop e workstation",
+        threat: "Cifratura malevola",
+        vulnerability: "Patch management incompleto",
+        likelihood: 4,
+        impact: 5,
+        residualLikelihood: 2,
+        residualImpact: 3,
+        treatment: "Mitigate",
+        ownerName: "Luigi Bianchi",
+        status: "OPEN",
       },
-      create: {
-        name: user.name,
-        username: user.username,
-        email: user.email,
-        passwordHash: await hashPassword(user.password),
-        role: user.role,
-        companyId: user.companyId,
-        active: true
-      }
-    });
-  }
-}
-
-async function main() {
-  await seedBaseline();
-  const acme = await seedCompany("Acme Srl", "ISO 27001", "Giulia Rinaldi", "SaaS", DEFAULT_PROFILE);
-  const beta = await seedCompany("Beta Logistics", "ISO 27001 + NIS2", "Marco Conti", "Logistics", {
-    ...DEFAULT_PROFILE,
-    physicalOfficeControl: true,
-    remoteWorkforce: false,
-    softwareDevelopment: false
+    ],
   });
-  await seedUsers(acme.id, beta.id);
+
+  await prisma.user.createMany({
+    data: [
+      {
+        id: "admin",
+        name: "Admin",
+        username: "admin",
+        email: "admin@test.com",
+        passwordHash: "admin12345",
+        role: "SUPER_ADMIN",
+      },
+      {
+        id: "acme-user",
+        name: "Acme User",
+        username: "acme",
+        email: "acme@test.com",
+        passwordHash: "acme12345",
+        role: "COMPLIANCE_MANAGER",
+        companyId: acme.id,
+      },
+      {
+        id: "beta-user",
+        name: "Beta User",
+        username: "beta",
+        email: "beta@test.com",
+        passwordHash: "beta12345",
+        role: "CLIENT_ADMIN",
+        companyId: beta.id,
+      },
+    ],
+  });
+
+  console.log("✅ SEED COMPLETATO");
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
-  .catch(async (error) => {
-    console.error(error);
-    await prisma.$disconnect();
+  .catch((error) => {
+    console.error("SEED ERROR:", error);
     process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
   });
