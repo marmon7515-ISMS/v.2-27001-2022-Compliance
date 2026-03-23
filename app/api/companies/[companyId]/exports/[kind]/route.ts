@@ -1,57 +1,63 @@
-import { getSessionUser } from "@/lib/auth";
+// app/api/companies/[companyId]/exports/[kind]/route.ts
+
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { buildDocx, buildPdf } from "@/lib/exporters";
 
 export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ companyId: string; kind: string }> }
+  req: Request,
+  { params }: { params: { companyId: string; kind: string } }
 ) {
-  const session = await getSessionUser();
-  if (!session) return new Response("Unauthorized", { status: 401 });
-
-  const { companyId, kind } = await params;
-  if (session.companyId !== "all" && session.companyId !== companyId) {
-    return new Response("Forbidden", { status: 403 });
-  }
-
-  if (!["soa", "risks", "documents"].includes(kind)) {
-    return new Response("Invalid export kind", { status: 400 });
-  }
-
-  const format = new URL(request.url).searchParams.get("format") ?? "docx";
-  if (!["docx", "pdf"].includes(format)) {
-    return new Response("Invalid export format", { status: 400 });
-  }
+  const { companyId, kind } = params;
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     include: {
-      profile: true,
-      controls: { include: { baselineControl: true }, orderBy: { baselineControl: { code: "asc" } } },
-      risks: { orderBy: { title: "asc" } },
-      documents: { orderBy: { name: "asc" } }
-    }
+      documents: true,
+      risks: true,
+      controls: {
+        include: { baselineControl: true },
+      },
+    },
   });
 
-  if (!company) return new Response("Not found", { status: 404 });
-
-  if (format === "docx") {
-    const buffer = await buildDocx(kind as "soa" | "risks" | "documents", company);
-    return new Response(buffer, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="${kind}-${company.name}.docx"`
-      }
-    });
+  if (!company) {
+    return NextResponse.json({ error: "Company not found" }, { status: 404 });
   }
 
-  const buffer = await buildPdf(kind as "soa" | "risks" | "documents", company);
-  return new Response(buffer, {
-    status: 200,
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${kind}-${company.name}.pdf"`
+  let content = "";
+
+  if (kind === "soa") {
+    content += `Statement of Applicability - ${company.name}\n\n`;
+
+    for (const c of company.controls) {
+      content += `${c.baselineControl.code} - ${c.baselineControl.title}\n`;
+      content += `Status: ${c.status}\n`;
+      content += `Applicable: ${c.applicable}\n\n`;
     }
+  }
+
+  if (kind === "risks") {
+    content += `Risk Register - ${company.name}\n\n`;
+
+    for (const r of company.risks) {
+      content += `${r.title}\n`;
+      content += `Asset: ${r.asset}\n`;
+      content += `Score: ${r.likelihood * r.impact}\n\n`;
+    }
+  }
+
+  if (kind === "documents") {
+    content += `Documents - ${company.name}\n\n`;
+
+    for (const d of company.documents) {
+      content += `${d.name} (${d.status})\n`;
+    }
+  }
+
+  return new NextResponse(content, {
+    headers: {
+      "Content-Type": "text/plain",
+      "Content-Disposition": `attachment; filename=${kind}.txt`,
+    },
   });
 }
