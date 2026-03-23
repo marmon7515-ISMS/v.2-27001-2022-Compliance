@@ -1,54 +1,42 @@
 // app/api/auth/login/route.ts
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { authenticate, createSession } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { username, password } = body;
+    const username = String(body?.username ?? "").trim();
+    const password = String(body?.password ?? "");
 
     if (!username || !password) {
       return NextResponse.json(
         { error: "Missing credentials" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { username },
-    });
+    const sessionUser = await authenticate(username, password);
 
-    if (!user) {
+    if (!sessionUser) {
       return NextResponse.json(
         { error: "Invalid credentials" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
-    // 🔥 TEMP FIX: confronto diretto (NO hash)
-    if (password !== user.passwordHash) {
-      return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 }
-      );
-    }
+    await createSession(sessionUser);
 
     return NextResponse.json({
       success: true,
-      user: {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        companyId: user.companyId,
-      },
+      user: sessionUser,
     });
-
   } catch (error) {
-    console.error(error);
+    console.error("Login error:", error);
+
     return NextResponse.json(
       { error: "Internal error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
