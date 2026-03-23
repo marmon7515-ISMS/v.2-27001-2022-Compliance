@@ -7,11 +7,11 @@ import {
   Paragraph,
   TextRun,
 } from "docx";
-import PDFDocument from "pdfkit";
 
 type ExportKind = "soa" | "risks" | "documents";
 
 type ExportCompany = {
+  id?: string;
   name: string;
   framework: string;
   profile: {
@@ -80,7 +80,178 @@ function yesNo(value: boolean): string {
   return value ? "Sì" : "No";
 }
 
-function buildIntro(company: ExportCompany, title: string): Paragraph[] {
+function introLines(company: ExportCompany, title: string): string[] {
+  return [
+    title,
+    `Cliente: ${company.name}`,
+    `Framework: ${company.framework}`,
+    `Descrizione: ${company.profile?.customerDescription ?? ""}`,
+    `Settore: ${company.profile?.industry ?? ""}`,
+    `Dimensione: ${company.profile?.companySize ?? ""}`,
+    "",
+  ];
+}
+
+function buildSoaLines(company: ExportCompany): string[] {
+  const lines = introLines(company, exportTitle("soa"));
+
+  for (const item of company.controls) {
+    lines.push(`${item.baselineControl.code} - ${item.baselineControl.title}`);
+    lines.push(`Dominio: ${item.baselineControl.domain}`);
+    lines.push(`Applicabile: ${yesNo(item.applicable)}`);
+    lines.push(`Stato: ${item.status}`);
+    lines.push(`Motivazione: ${item.justification}`);
+    lines.push("");
+  }
+
+  return lines;
+}
+
+function buildRisksLines(company: ExportCompany): string[] {
+  const lines = introLines(company, exportTitle("risks"));
+
+  for (const item of company.risks) {
+    lines.push(item.title);
+    lines.push(`Categoria: ${item.category}`);
+    lines.push(`Asset: ${item.asset}`);
+    lines.push(`Minaccia: ${item.threat}`);
+    lines.push(`Vulnerabilità: ${item.vulnerability}`);
+    lines.push(`Likelihood: ${item.likelihood}`);
+    lines.push(`Impact: ${item.impact}`);
+    lines.push(`Score inerente: ${item.likelihood * item.impact}`);
+    lines.push(`Score residuo: ${item.residualLikelihood * item.residualImpact}`);
+    lines.push(`Trattamento: ${item.treatment}`);
+    lines.push(`Stato: ${item.status}`);
+    lines.push("");
+  }
+
+  return lines;
+}
+
+function buildDocumentsLines(company: ExportCompany): string[] {
+  const lines = introLines(company, exportTitle("documents"));
+
+  for (const item of company.documents) {
+    lines.push(item.name);
+    lines.push(`Categoria: ${item.category}`);
+    lines.push(`Richiesto: ${yesNo(item.required)}`);
+    lines.push(`Stato: ${item.status}`);
+    lines.push(`Motivazione: ${item.reason}`);
+    lines.push("");
+  }
+
+  return lines;
+}
+
+function buildLines(kind: ExportKind, company: ExportCompany): string[] {
+  if (kind === "soa") {
+    return buildSoaLines(company);
+  }
+
+  if (kind === "risks") {
+    return buildRisksLines(company);
+  }
+
+  return buildDocumentsLines(company);
+}
+
+function escapePdfText(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)")
+    .replace(/[^\x20-\x7E]/g, "?");
+}
+
+function wrapPdfLine(text: string, maxLength = 95): string[] {
+  if (!text) {
+    return [""];
+  }
+
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+
+    if (candidate.length <= maxLength) {
+      current = candidate;
+      continue;
+    }
+
+    if (current) {
+      lines.push(current);
+    }
+
+    current = word;
+  }
+
+  if (current) {
+    lines.push(current);
+  }
+
+  return lines;
+}
+
+function buildPdfContent(lines: string[]): string {
+  const commands: string[] = ["BT", "/F1 11 Tf", "50 790 Td", "14 TL"];
+
+  for (const rawLine of lines) {
+    const wrappedLines = wrapPdfLine(rawLine);
+
+    for (const line of wrappedLines) {
+      commands.push(`(${escapePdfText(line)}) Tj`);
+      commands.push("T*");
+    }
+  }
+
+  commands.push("ET");
+
+  return commands.join("\n");
+}
+
+function createSimplePdfBuffer(lines: string[]): Buffer {
+  const contentStream = buildPdfContent(lines);
+
+  const objects: string[] = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
+    "2 0 obj\n<< /Type /Pages /Count 1 /Kids [3 0 R] >>\nendobj",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj",
+    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj",
+    `5 0 obj\n<< /Length ${Buffer.byteLength(contentStream, "utf8")} >>\nstream\n${contentStream}\nendstream\nendobj`,
+  ];
+
+  let pdf = "%PDF-1.4\n";
+  const offsets: number[] = [0];
+
+  for (const object of objects) {
+    offsets.push(Buffer.byteLength(pdf, "utf8"));
+    pdf += `${object}\n`;
+  }
+
+  const xrefOffset = Buffer.byteLength(pdf, "utf8");
+
+  pdf += `xref
+0 ${objects.length + 1}
+0000000000 65535 f 
+`;
+
+  for (let index = 1; index < offsets.length; index += 1) {
+    pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n 
+`;
+  }
+
+  pdf += `trailer
+<< /Size ${objects.length + 1} /Root 1 0 R >>
+startxref
+${xrefOffset}
+%%EOF`;
+
+  return Buffer.from(pdf, "utf8");
+}
+
+function buildIntroParagraphs(company: ExportCompany, title: string): Paragraph[] {
   return [
     new Paragraph({
       text: title,
@@ -174,9 +345,12 @@ function buildDocxDocuments(company: ExportCompany): Paragraph[] {
   return children;
 }
 
-export async function buildDocx(kind: ExportKind, company: ExportCompany): Promise<Buffer> {
+export async function buildDocx(
+  kind: ExportKind,
+  company: ExportCompany,
+): Promise<Buffer> {
   const title = exportTitle(kind);
-  const children: Paragraph[] = [...buildIntro(company, title)];
+  const children: Paragraph[] = [...buildIntroParagraphs(company, title)];
 
   if (kind === "soa") {
     children.push(...buildDocxSoa(company));
@@ -197,91 +371,9 @@ export async function buildDocx(kind: ExportKind, company: ExportCompany): Promi
   return Packer.toBuffer(doc);
 }
 
-function writePdfHeader(doc: PDFKit.PDFDocument, company: ExportCompany, title: string) {
-  doc.fontSize(20).text(title);
-  doc.moveDown(0.5);
-  doc.fontSize(11).text(`Cliente: ${company.name}`);
-  doc.text(`Framework: ${company.framework}`);
-  doc.text(`Descrizione: ${company.profile?.customerDescription ?? ""}`);
-  doc.text(`Settore: ${company.profile?.industry ?? ""}`);
-  doc.text(`Dimensione: ${company.profile?.companySize ?? ""}`);
-  doc.moveDown();
-}
-
-function writePdfSoa(doc: PDFKit.PDFDocument, company: ExportCompany) {
-  for (const item of company.controls) {
-    doc.fontSize(13).text(`${item.baselineControl.code} - ${item.baselineControl.title}`);
-    doc.fontSize(10).text(`Dominio: ${item.baselineControl.domain}`);
-    doc.text(`Applicabile: ${yesNo(item.applicable)}`);
-    doc.text(`Stato: ${item.status}`);
-    doc.text(`Motivazione: ${item.justification}`);
-    doc.moveDown();
-  }
-}
-
-function writePdfRisks(doc: PDFKit.PDFDocument, company: ExportCompany) {
-  for (const item of company.risks) {
-    doc.fontSize(13).text(item.title);
-    doc.fontSize(10).text(`Categoria: ${item.category}`);
-    doc.text(`Asset: ${item.asset}`);
-    doc.text(`Minaccia: ${item.threat}`);
-    doc.text(`Vulnerabilità: ${item.vulnerability}`);
-    doc.text(`Likelihood: ${item.likelihood}`);
-    doc.text(`Impact: ${item.impact}`);
-    doc.text(`Score inerente: ${item.likelihood * item.impact}`);
-    doc.text(`Score residuo: ${item.residualLikelihood * item.residualImpact}`);
-    doc.text(`Trattamento: ${item.treatment}`);
-    doc.text(`Stato: ${item.status}`);
-    doc.moveDown();
-  }
-}
-
-function writePdfDocuments(doc: PDFKit.PDFDocument, company: ExportCompany) {
-  for (const item of company.documents) {
-    doc.fontSize(13).text(item.name);
-    doc.fontSize(10).text(`Categoria: ${item.category}`);
-    doc.text(`Richiesto: ${yesNo(item.required)}`);
-    doc.text(`Stato: ${item.status}`);
-    doc.text(`Motivazione: ${item.reason}`);
-    doc.moveDown();
-  }
-}
-
-export async function buildPdf(kind: ExportKind, company: ExportCompany): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({
-        margin: 48,
-        size: "A4",
-      });
-
-      const chunks: Buffer[] = [];
-
-      doc.on("data", (chunk: Buffer) => {
-        chunks.push(Buffer.from(chunk));
-      });
-
-      doc.on("end", () => {
-        resolve(Buffer.concat(chunks));
-      });
-
-      doc.on("error", (error: Error) => {
-        reject(error);
-      });
-
-      writePdfHeader(doc, company, exportTitle(kind));
-
-      if (kind === "soa") {
-        writePdfSoa(doc, company);
-      } else if (kind === "risks") {
-        writePdfRisks(doc, company);
-      } else {
-        writePdfDocuments(doc, company);
-      }
-
-      doc.end();
-    } catch (error) {
-      reject(error);
-    }
-  });
+export async function buildPdf(
+  kind: ExportKind,
+  company: ExportCompany,
+): Promise<Buffer> {
+  return createSimplePdfBuffer(buildLines(kind, company));
 }
