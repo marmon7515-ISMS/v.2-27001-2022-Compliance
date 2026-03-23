@@ -47,7 +47,11 @@ function statusBadgeClass(status: string) {
     return "border-amber-200 bg-amber-50 text-amber-700";
   }
 
-  if (normalized.includes("REJECTED") || normalized.includes("NOT_APPLICABLE")) {
+  if (
+    normalized.includes("REJECTED") ||
+    normalized.includes("NOT_APPLICABLE") ||
+    normalized.includes("NOT_REQUIRED")
+  ) {
     return "border-slate-200 bg-slate-100 text-slate-700";
   }
 
@@ -129,8 +133,9 @@ export default async function DashboardPage({
   ).length;
 
   const openRisks = company.risks.filter((item) => item.status !== "CLOSED").length;
-  const criticalRisks = company.risks.filter((item) => score(item.likelihood, item.impact) >= 15)
-    .length;
+  const criticalRisks = company.risks.filter(
+    (item) => score(item.likelihood, item.impact) >= 15,
+  ).length;
 
   const uploadedFiles = company.uploads ?? [];
 
