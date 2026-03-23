@@ -7,6 +7,7 @@ import {
   Paragraph,
   TextRun,
 } from "docx";
+import { generateDocumentContent } from "@/lib/policy-generator";
 
 type ExportKind = "soa" | "risks" | "documents";
 
@@ -14,6 +15,8 @@ type ExportCompany = {
   id?: string;
   name: string;
   framework: string;
+  ownerName?: string;
+  industry?: string;
   profile: {
     customerDescription: string;
     industry: string;
@@ -137,6 +140,10 @@ function buildDocumentsLines(company: ExportCompany): string[] {
     lines.push(`Richiesto: ${yesNo(item.required)}`);
     lines.push(`Stato: ${item.status}`);
     lines.push(`Motivazione: ${item.reason}`);
+    lines.push("");
+    lines.push(generateDocumentContent(item.name, company));
+    lines.push("");
+    lines.push("------------------------------------------------------------");
     lines.push("");
   }
 
@@ -325,19 +332,29 @@ function buildDocxRisks(company: ExportCompany): Paragraph[] {
   return children;
 }
 
+function contentToParagraphs(content: string): Paragraph[] {
+  return content.split("\n").map((line) => new Paragraph({ text: line }));
+}
+
 function buildDocxDocuments(company: ExportCompany): Paragraph[] {
   const children: Paragraph[] = [];
 
   for (const item of company.documents) {
+    const content = generateDocumentContent(item.name, company);
+
     children.push(
       new Paragraph({
         text: item.name,
-        heading: HeadingLevel.HEADING_2,
+        heading: HeadingLevel.HEADING_1,
       }),
       new Paragraph({ text: `Categoria: ${item.category}` }),
       new Paragraph({ text: `Richiesto: ${yesNo(item.required)}` }),
       new Paragraph({ text: `Stato: ${item.status}` }),
       new Paragraph({ text: `Motivazione: ${item.reason}` }),
+      new Paragraph({ text: "" }),
+      ...contentToParagraphs(content),
+      new Paragraph({ text: "" }),
+      new Paragraph({ text: "------------------------------------------------------------" }),
       new Paragraph({ text: "" }),
     );
   }
