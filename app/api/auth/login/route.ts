@@ -1,26 +1,54 @@
-import { z } from "zod";
-import { authenticate, createSession } from "@/lib/auth";
+// app/api/auth/login/route.ts
 
-const schema = z.object({
-  username: z.string().min(1),
-  password: z.string().min(1)
-});
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
-export async function POST(request: Request) {
-  const body = await request.json();
-  const parsed = schema.safeParse(body);
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { username, password } = body;
 
-  if (!parsed.success) {
-    return Response.json({ error: "Dati non validi." }, { status: 400 });
+    if (!username || !password) {
+      return NextResponse.json(
+        { error: "Missing credentials" },
+        { status: 400 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { username },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 }
+      );
+    }
+
+    // 🔥 TEMP FIX: confronto diretto (NO hash)
+    if (password !== user.passwordHash) {
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        companyId: user.companyId,
+      },
+    });
+
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { error: "Internal error" },
+      { status: 500 }
+    );
   }
-
-  const sessionUser = await authenticate(parsed.data.username, parsed.data.password);
-
-  if (!sessionUser) {
-    return Response.json({ error: "Credenziali non valide." }, { status: 401 });
-  }
-
-  await createSession(sessionUser);
-
-  return Response.json({ ok: true });
 }
