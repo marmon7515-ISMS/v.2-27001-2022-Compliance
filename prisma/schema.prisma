@@ -9,101 +9,230 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id         String   @id @default(cuid())
-  username   String   @unique
-  password   String
-  role       String
-  companyId  String?
-  company    Company? @relation(fields: [companyId], references: [id])
+enum UserRole {
+  SUPER_ADMIN
+  COMPLIANCE_MANAGER
+  CLIENT_ADMIN
+}
 
-  createdAt  DateTime @default(now())
+enum ControlStatus {
+  PLANNED
+  IMPLEMENTED
+  APPROVED
+  NOT_APPLICABLE
+}
+
+enum DocumentStatus {
+  DRAFT
+  APPROVED
+  NOT_REQUIRED
+}
+
+enum RiskStatus {
+  OPEN
+  TREATMENT_PLANNED
+  CLOSED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  username     String   @unique
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  companyId    String?
+  company      Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([companyId])
 }
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
+  id         String            @id
+  name       String
+  framework  String
+  ownerName  String
+  industry   String
 
-  users     User[]
-  profile   Profile?
-  documents Document[]
-  controls  Control[]
-  risks     Risk[]
-  uploads   Upload[]
+  profile    CompanyProfile?
+  controls   CompanyControl[]
+  risks      CompanyRisk[]
+  documents  CompanyDocument[]
+  uploads    CompanyUpload[]
+  tasks      Task[]
+  users      User[]
 
-  createdAt DateTime @default(now())
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
 }
 
-model Profile {
-  id         String  @id @default(cuid())
-  companyId  String  @unique
-  company    Company @relation(fields: [companyId], references: [id])
+model CompanyProfile {
+  id                         String   @id @default(cuid())
+  companyId                  String   @unique
+  company                    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  industry   String?
-  size       String?
-  hasCloud   Boolean @default(false)
-  hasPII     Boolean @default(false)
-  hasCriticalSystems Boolean @default(false)
+  customerDescription        String   @default("")
+  industry                   String   @default("General")
+  companySize                String   @default("SMB")
+  remoteWorkforce            Boolean  @default(true)
+  physicalOfficeControl      Boolean  @default(false)
+  softwareDevelopment        Boolean  @default(true)
+  cloudHosted                Boolean  @default(true)
+  personalDataProcessing     Boolean  @default(true)
+  specialCategoryData        Boolean  @default(false)
+  paymentProcessing          Boolean  @default(false)
+  regulatedMarket            Boolean  @default(false)
+  suppliersCritical          Boolean  @default(true)
+  businessContinuityRequired Boolean  @default(true)
+  mobileDevicesUsed          Boolean  @default(true)
+  privilegedAccessManaged    Boolean  @default(true)
+  securityMonitoringNeeded   Boolean  @default(true)
+
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 }
 
-model Document {
+model BaselineControl {
+  id                String           @id @default(cuid())
+  code              String           @unique
+  title             String
+  domain            String
+  defaultApplicable Boolean          @default(true)
+  rationale         String
+
+  companyControls   CompanyControl[]
+
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model BaselineRisk {
+  id               String   @id @default(cuid())
+  key              String   @unique
+  title            String
+  category         String
+  asset            String
+  threat           String
+  vulnerability    String
+  likelihood       Int
+  impact           Int
+  residualLikelihood Int
+  residualImpact   Int
+  treatment        String
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model BaselineDocument {
   id         String   @id @default(cuid())
-  companyId  String
-  company    Company  @relation(fields: [companyId], references: [id])
-
+  key        String   @unique
   name       String
   category   String
-  status     String
-  required   Boolean  @default(true)
-  reason     String?
+  required   Boolean
+  reason     String
 
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
-model Control {
+model CompanyControl {
+  id               String        @id @default(cuid())
+  companyId        String
+  baselineControlId String
+  ownerName        String
+
+  applicable       Boolean       @default(true)
+  justification    String
+  evidence         String        @default("")
+  status           ControlStatus @default(PLANNED)
+
+  company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  baselineControl  BaselineControl @relation(fields: [baselineControlId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([companyId])
+  @@index([baselineControlId])
+}
+
+model CompanyRisk {
+  id                 String      @id @default(cuid())
+  companyId          String
+  title              String
+  category           String
+  asset              String
+  threat             String
+  vulnerability      String
+  likelihood         Int
+  impact             Int
+  residualLikelihood Int
+  residualImpact     Int
+  treatment          String
+  ownerName          String
+  status             RiskStatus  @default(OPEN)
+
+  company            Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([companyId])
+}
+
+model CompanyDocument {
+  id         String         @id @default(cuid())
+  companyId  String
+  name       String
+  category   String
+  required   Boolean        @default(true)
+  reason     String
+  ownerName  String
+  status     DocumentStatus @default(DRAFT)
+
+  company    Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([companyId])
+}
+
+model CompanyUpload {
+  id            String   @id @default(cuid())
+  companyId     String
+  name          String
+  mimeType      String
+  sizeBytes     Int
+  extractedText String   @default("")
+  analysisNotes String?
+  path          String?
+
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model Task {
   id         String   @id @default(cuid())
   companyId  String
-  company    Company  @relation(fields: [companyId], references: [id])
-
-  code       String
   title      String
-  status     String
-  applicable Boolean  @default(true)
-  justification String?
+  assignee   String
+  priority   String
+  dueDate    DateTime?
+  completed  Boolean  @default(false)
+
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   createdAt  DateTime @default(now())
-}
+  updatedAt  DateTime @updatedAt
 
-model Risk {
-  id                  String   @id @default(cuid())
-  companyId           String
-  company             Company  @relation(fields: [companyId], references: [id])
-
-  title               String
-  asset               String
-
-  likelihood          Int
-  impact              Int
-
-  residualLikelihood  Int
-  residualImpact      Int
-
-  status              String
-
-  createdAt           DateTime @default(now())
-}
-
-model Upload {
-  id           String   @id @default(cuid())
-  companyId    String
-  company      Company  @relation(fields: [companyId], references: [id])
-
-  name         String
-  mimeType     String
-  sizeBytes    Int
-  path         String
-
-  analysisNotes String?
-
-  createdAt    DateTime @default(now())
+  @@index([companyId])
 }
