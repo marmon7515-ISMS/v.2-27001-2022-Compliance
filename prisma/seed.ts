@@ -417,7 +417,7 @@ async function seedUsers(acmeId: string, betaId: string) {
         email: "giulia@example.local",
         passwordHash: "admin12345",
         role: UserRole.SUPER_ADMIN,
-        companyId: "all",
+        companyId: null,
         active: true,
       },
       {
