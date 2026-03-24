@@ -27,7 +27,9 @@ function enabled(profile: ProfileInput, flag: keyof ProfileInput): boolean {
 }
 
 function controlRule(profile: ProfileInput, code: string): RuleResult {
-  switch (code) {
+  const normalizedCode = code.startsWith("A.") ? code : `A.${code}`;
+
+  switch (normalizedCode) {
     // Supplier controls
     case "A.5.19":
     case "A.5.20":
