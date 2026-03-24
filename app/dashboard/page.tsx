@@ -495,30 +495,48 @@ export default async function DashboardPage({
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Export</CardTitle>
+                  <CardTitle>Editor controllo SoA</CardTitle>
                   <CardDescription>
-                    Genera file DOCX o PDF pronti da condividere.
+                    Override manuale auditor su un controllo selezionato.
                   </CardDescription>
                 </CardHeader>
-                <CardBody className="space-y-3">
-                  <ExportRow
-                    companyId={company.id}
-                    kind="soa"
-                    label="Dichiarazione di applicabilità"
-                  />
-                  <ExportRow
-                    companyId={company.id}
-                    kind="risks"
-                    label="Registro dei rischi"
-                  />
-                  <ExportRow
-                    companyId={company.id}
-                    kind="documents"
-                    label="Set documentale"
-                  />
+                <CardBody>
+                  {company.controls.length > 0 ? (
+                    <ControlEditor companyId={company.id} control={company.controls[0]} />
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                      Nessun controllo disponibile.
+                    </div>
+                  )}
                 </CardBody>
               </Card>
             </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Export</CardTitle>
+                <CardDescription>
+                  Genera file DOCX o PDF pronti da condividere.
+                </CardDescription>
+              </CardHeader>
+              <CardBody className="space-y-3">
+                <ExportRow
+                  companyId={company.id}
+                  kind="soa"
+                  label="Dichiarazione di applicabilità"
+                />
+                <ExportRow
+                  companyId={company.id}
+                  kind="risks"
+                  label="Registro dei rischi"
+                />
+                <ExportRow
+                  companyId={company.id}
+                  kind="documents"
+                  label="Set documentale"
+                />
+              </CardBody>
+            </Card>
           </div>
         </section>
       </div>
