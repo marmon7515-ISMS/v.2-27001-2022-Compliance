@@ -26,6 +26,7 @@ import {
 import LogoutButton from "@/components/logout-button";
 import ProfileForm from "@/components/profile-form";
 import UploadForm from "@/components/upload-form";
+import ControlEditor from "@/components/control-editor";
 
 function statusBadgeClass(status: string) {
   const normalized = status.toUpperCase();
