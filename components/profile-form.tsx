@@ -1,208 +1,323 @@
-// components/profile-form.tsx
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
+import type { ProfileInput } from "@/lib/profile-input";
+import { EMPTY_PROFILE } from "@/lib/profile-input";
 
-type Profile = {
-  cloudServices: boolean;
-  softwareDevelopment: boolean;
-  suppliersCritical: boolean;
-  remoteWorkforce: boolean;
-  physicalOfficeControl: boolean;
-  criticalProcesses: boolean;
-  personalData: boolean;
-  regulatedSector: boolean;
-  customerDescription: string;
-  uploadedContext: string;
-};
-
-const labels: Record<keyof Omit<Profile, "customerDescription" | "uploadedContext">, string> = {
-  cloudServices: "Servizi cloud",
-  softwareDevelopment: "Sviluppo software interno",
-  suppliersCritical: "Fornitori critici",
-  remoteWorkforce: "Lavoro remoto o ibrido",
-  physicalOfficeControl: "Controllo fisico sedi",
-  criticalProcesses: "Processi critici",
-  personalData: "Dati personali o sensibili",
-  regulatedSector: "Settore regolamentato",
-};
-
-const booleanFields: Array<keyof Omit<Profile, "customerDescription" | "uploadedContext">> = [
-  "cloudServices",
-  "softwareDevelopment",
-  "suppliersCritical",
-  "remoteWorkforce",
-  "physicalOfficeControl",
-  "criticalProcesses",
-  "personalData",
-  "regulatedSector",
-];
-
-type Status =
-  | { type: "idle"; text: "" }
-  | { type: "success"; text: string }
-  | { type: "error"; text: string };
-
-export default function ProfileForm({
-  companyId,
-  profile,
-}: {
+type ProfileFormProps = {
   companyId: string;
-  profile: Profile;
-}) {
-  const router = useRouter();
-  const [form, setForm] = useState(profile);
-  const [status, setStatus] = useState<Status>({ type: "idle", text: "" });
-  const [busyAction, setBusyAction] = useState<"save" | "rebuild" | null>(null);
+  initialProfile?: Partial<ProfileInput> | null;
+};
 
-  function updateBooleanField(key: keyof typeof labels, value: boolean) {
-    setForm((current) => ({
-      ...current,
+type FormState = ProfileInput;
+
+function normalizeProfile(input?: Partial<ProfileInput> | null): ProfileInput {
+  return {
+    ...EMPTY_PROFILE,
+    ...(input ?? {}),
+  };
+}
+
+function Field({
+  label,
+  children,
+  hint,
+}: {
+  label: string;
+  children: React.ReactNode;
+  hint?: string;
+}) {
+  return (
+    <label className="block space-y-1">
+      <span className="text-sm font-medium text-slate-700">{label}</span>
+      {children}
+      {hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
+    </label>
+  );
+}
+
+function ToggleField({
+  label,
+  checked,
+  onChange,
+  hint,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  hint?: string;
+}) {
+  return (
+    <label className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 p-4">
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-slate-800">{label}</div>
+        {hint ? <div className="text-xs text-slate-500">{hint}</div> : null}
+      </div>
+
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative h-6 w-11 rounded-full transition ${
+          checked ? "bg-slate-900" : "bg-slate-300"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${
+            checked ? "left-[22px]" : "left-0.5"
+          }`}
+        />
+      </button>
+    </label>
+  );
+}
+
+export default function ProfileForm({ companyId, initialProfile }: ProfileFormProps) {
+  const initialState = useMemo(() => normalizeProfile(initialProfile), [initialProfile]);
+
+  const [form, setForm] = useState<FormState>(initialState);
+  const [saveMessage, setSaveMessage] = useState<string>("");
+  const [rebuildMessage, setRebuildMessage] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [isSaving, startSaving] = useTransition();
+  const [isRebuilding, startRebuilding] = useTransition();
+
+  function update<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((prev) => ({
+      ...prev,
       [key]: value,
     }));
   }
 
-  async function submitProfile(endpoint: string, action: "save" | "rebuild") {
-    try {
-      setBusyAction(action);
-      setStatus({ type: "idle", text: "" });
+  async function saveProfile() {
+    setSaveMessage("");
+    setRebuildMessage("");
+    setErrorMessage("");
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      });
+    const response = await fetch(`/api/companies/${companyId}/profile`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(form),
+    });
 
-      const payload = (await response.json()) as {
-        message?: string;
-        error?: string;
-      };
+    const data = await response.json().catch(() => null);
 
-      if (!response.ok) {
-        setStatus({
-          type: "error",
-          text: payload.error ?? "Operazione non completata.",
-        });
-        return;
-      }
-
-      setStatus({
-        type: "success",
-        text:
-          payload.message ??
-          (action === "save"
-            ? "Profilo salvato correttamente."
-            : "Baseline cliente rigenerata correttamente."),
-      });
-
-      router.refresh();
-    } catch {
-      setStatus({
-        type: "error",
-        text: "Errore di rete. Riprovare tra qualche istante.",
-      });
-    } finally {
-      setBusyAction(null);
+    if (!response.ok) {
+      setErrorMessage(data?.error ?? "Errore durante il salvataggio del profilo.");
+      return;
     }
+
+    setSaveMessage(data?.message ?? "Profilo salvato.");
+  }
+
+  async function rebuildFromProfile() {
+    setSaveMessage("");
+    setRebuildMessage("");
+    setErrorMessage("");
+
+    const response = await fetch(`/api/companies/${companyId}/rebuild`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(form),
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      setErrorMessage(data?.error ?? "Errore durante la rigenerazione della baseline.");
+      return;
+    }
+
+    setRebuildMessage(data?.message ?? "Baseline rigenerata.");
   }
 
   return (
-    <div className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-2">
-        {booleanFields.map((key) => (
-          <label
-            key={key}
-            className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
-          >
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold text-slate-900">Profilo aziendale</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Questo profilo alimenta il motore regole per controlli, rischi e documenti.
+        </p>
+      </div>
+
+      <div className="grid gap-6">
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Settore">
             <input
-              checked={form[key]}
-              className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
-              onChange={(event) => updateBooleanField(key, event.target.checked)}
-              type="checkbox"
+              type="text"
+              value={form.industry}
+              onChange={(e) => update("industry", e.target.value)}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-0 focus:border-slate-500"
+              placeholder="Es. Software, Sanità, Servizi professionali"
             />
-            <span className="leading-6">{labels[key]}</span>
-          </label>
-        ))}
-      </div>
+          </Field>
 
-      <div className="space-y-2">
-        <label
-          className="block text-sm font-medium text-slate-800"
-          htmlFor="customerDescription"
-        >
-          Descrizione attività cliente
-        </label>
-        <textarea
-          id="customerDescription"
-          className="min-h-28 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-          onChange={(event) =>
-            setForm((current) => ({
-              ...current,
-              customerDescription: event.target.value,
-            }))
-          }
-          placeholder="Descrivi servizi, sedi, processi, perimetro e contesto operativo."
-          value={form.customerDescription}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <label
-          className="block text-sm font-medium text-slate-800"
-          htmlFor="uploadedContext"
-        >
-          Contesto raccolto da interviste o documenti
-        </label>
-        <textarea
-          id="uploadedContext"
-          className="min-h-32 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-          onChange={(event) =>
-            setForm((current) => ({
-              ...current,
-              uploadedContext: event.target.value,
-            }))
-          }
-          placeholder="Inserisci elementi emersi da checklist, riunioni, assessment o file caricati."
-          value={form.uploadedContext}
-        />
-      </div>
-
-      {status.type !== "idle" ? (
-        <div
-          className={[
-            "rounded-2xl border px-4 py-3 text-sm",
-            status.type === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border-rose-200 bg-rose-50 text-rose-800",
-          ].join(" ")}
-        >
-          {status.text}
+          <Field label="Dimensione azienda">
+            <select
+              value={form.companySize}
+              onChange={(e) => update("companySize", e.target.value)}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+            >
+              <option value="Micro">Micro</option>
+              <option value="SMB">PMI</option>
+              <option value="Mid-Market">Mid-Market</option>
+              <option value="Enterprise">Enterprise</option>
+            </select>
+          </Field>
         </div>
-      ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        <button
-          className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={busyAction !== null}
-          onClick={() => submitProfile(`/api/companies/${companyId}/profile`, "save")}
-          type="button"
+        <Field
+          label="Descrizione cliente"
+          hint="Testo sintetico usato come contesto generale del perimetro."
         >
-          {busyAction === "save" ? "Salvataggio in corso..." : "Salva profilo"}
-        </button>
+          <textarea
+            value={form.customerDescription}
+            onChange={(e) => update("customerDescription", e.target.value)}
+            rows={5}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+            placeholder="Descrivi attività, servizi, asset principali, sede, processi critici e contesto operativo."
+          />
+        </Field>
 
-        <button
-          className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={busyAction !== null}
-          onClick={() => submitProfile(`/api/companies/${companyId}/rebuild`, "rebuild")}
-          type="button"
-        >
-          {busyAction === "rebuild"
-            ? "Rigenerazione in corso..."
-            : "Rigenera baseline cliente"}
-        </button>
+        <div className="grid gap-4 md:grid-cols-2">
+          <ToggleField
+            label="Lavoro remoto o ibrido"
+            checked={form.remoteWorkforce}
+            onChange={(value) => update("remoteWorkforce", value)}
+            hint="Influenza controlli su remote working, asset fuori sede, endpoint."
+          />
+
+          <ToggleField
+            label="Controllo diretto di sedi / uffici / locali"
+            checked={form.physicalOfficeControl}
+            onChange={(value) => update("physicalOfficeControl", value)}
+            hint="Attiva controlli fisici e ambientali."
+          />
+
+          <ToggleField
+            label="Sviluppo software interno"
+            checked={form.softwareDevelopment}
+            onChange={(value) => update("softwareDevelopment", value)}
+            hint="Attiva i controlli di secure development e segregazione ambienti."
+          />
+
+          <ToggleField
+            label="Servizi cloud nel perimetro"
+            checked={form.cloudHosted}
+            onChange={(value) => update("cloudHosted", value)}
+            hint="Attiva controlli cloud e rischi di configurazione."
+          />
+
+          <ToggleField
+            label="Trattamento di dati personali"
+            checked={form.personalDataProcessing}
+            onChange={(value) => update("personalDataProcessing", value)}
+            hint="Rilevante per privacy, compliance e protezione PII."
+          />
+
+          <ToggleField
+            label="Categorie particolari di dati"
+            checked={form.specialCategoryData}
+            onChange={(value) => update("specialCategoryData", value)}
+            hint="Misure rafforzate per dati sensibili."
+          />
+
+          <ToggleField
+            label="Processi di pagamento"
+            checked={form.paymentProcessing}
+            onChange={(value) => update("paymentProcessing", value)}
+            hint="Aumenta il profilo di rischio finanziario e applicativo."
+          />
+
+          <ToggleField
+            label="Mercato regolamentato / obblighi regolatori forti"
+            checked={form.regulatedMarket}
+            onChange={(value) => update("regulatedMarket", value)}
+            hint="Rilevante per obblighi legali, normativi e contrattuali."
+          />
+
+          <ToggleField
+            label="Fornitori critici"
+            checked={form.suppliersCritical}
+            onChange={(value) => update("suppliersCritical", value)}
+            hint="Attiva controlli supplier security e supply chain."
+          />
+
+          <ToggleField
+            label="Continuità operativa ICT rilevante"
+            checked={form.businessContinuityRequired}
+            onChange={(value) => update("businessContinuityRequired", value)}
+            hint="Attiva continuità, resilienza e discontinuità."
+          />
+
+          <ToggleField
+            label="Uso di dispositivi mobili"
+            checked={form.mobileDevicesUsed}
+            onChange={(value) => update("mobileDevicesUsed", value)}
+            hint="Rilevante per smartphone, tablet, device fuori sede."
+          />
+
+          <ToggleField
+            label="Presenza di privilegi elevati"
+            checked={form.privilegedAccessManaged}
+            onChange={(value) => update("privilegedAccessManaged", value)}
+            hint="Attiva controlli PAM, utility privilegiate e governance accessi."
+          />
+
+          <ToggleField
+            label="Necessità di logging e monitoraggio sicurezza"
+            checked={form.securityMonitoringNeeded}
+            onChange={(value) => update("securityMonitoringNeeded", value)}
+            hint="Attiva controlli su logging, monitoring e rilevazione eventi."
+          />
+        </div>
+
+        {(saveMessage || rebuildMessage || errorMessage) && (
+          <div className="space-y-2">
+            {saveMessage ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                {saveMessage}
+              </div>
+            ) : null}
+
+            {rebuildMessage ? (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                {rebuildMessage}
+              </div>
+            ) : null}
+
+            {errorMessage ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                {errorMessage}
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => startSaving(saveProfile)}
+            disabled={isSaving || isRebuilding}
+            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSaving ? "Salvataggio..." : "Salva profilo"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => startRebuilding(rebuildFromProfile)}
+            disabled={isSaving || isRebuilding}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isRebuilding ? "Rigenerazione..." : "Rigenera baseline"}
+          </button>
+        </div>
       </div>
     </div>
   );
