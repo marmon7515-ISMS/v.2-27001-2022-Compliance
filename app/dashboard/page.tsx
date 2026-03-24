@@ -4,7 +4,7 @@ import Link from "next/link";
 import { DocumentStatus } from "@prisma/client";
 import { requireSession } from "@/lib/auth";
 import { getDashboardData } from "@/lib/dashboard";
-import { EMPTY_PROFILE } from "@/lib/profile-defaults";
+import { EMPTY_PROFILE } from "@/lib/profile-input";
 import { score } from "@/lib/rules";
 import {
   translateControlStatus,
