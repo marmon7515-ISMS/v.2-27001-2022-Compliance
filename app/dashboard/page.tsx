@@ -248,7 +248,7 @@ export default async function DashboardPage({
                   </CardDescription>
                 </CardHeader>
                 <CardBody>
-                  <ProfileForm companyId={company.id} profile={profile} />
+                  <ProfileForm companyId={company.id} initialProfile={profile} />
                 </CardBody>
               </Card>
 
