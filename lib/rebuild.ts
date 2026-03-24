@@ -9,6 +9,10 @@ export async function rebuildCompanyFromProfile(companyId: string, profile: Prof
     orderBy: { code: "asc" },
   });
 
+  const existingControls = await prisma.companyControl.findMany({
+    where: { companyId },
+  });
+
   const controls = deriveControls(profile);
   const risks = deriveRisks(profile);
   const documents = deriveDocuments(profile);
@@ -20,65 +24,74 @@ export async function rebuildCompanyFromProfile(companyId: string, profile: Prof
       create: { companyId, ...profile },
     }),
 
-    prisma.companyControl.deleteMany({ where: { companyId } }),
-    prisma.companyRisk.deleteMany({ where: { companyId } }),
-    prisma.companyDocument.deleteMany({ where: { companyId } }),
+    prisma.companyControl.deleteMany({
+      where: { companyId },
+    }),
 
-    // carico eventuali controlli già esistenti per preservare override auditor
-const existingControls = await prisma.companyControl.findMany({
-  where: { companyId },
-});
+    prisma.companyRisk.deleteMany({
+      where: { companyId },
+    }),
 
-await prisma.companyControl.deleteMany({ where: { companyId } });
+    prisma.companyDocument.deleteMany({
+      where: { companyId },
+    }),
 
-await prisma.companyControl.createMany({
-  data: controls.map((control) => {
-    const baseline = baselineControls.find((item) => item.code === control.code);
+    prisma.companyControl.createMany({
+      data: controls.map((control) => {
+        const normalizedCode = control.code.startsWith("A.")
+          ? control.code
+          : `A.${control.code}`;
 
-    if (!baseline) {
-      throw new Error(`Missing baseline control ${control.code}`);
-    }
+        const baseline = baselineControls.find((item) => {
+          const baselineCode = item.code.startsWith("A.") ? item.code : `A.${item.code}`;
+          return baselineCode === normalizedCode;
+        });
 
-    const existing = existingControls.find(
-      (c) => c.baselineControlId === baseline.id,
-    );
+        if (!baseline) {
+          throw new Error(`Missing baseline control ${control.code}`);
+        }
 
-    const hasManualOverride =
-      existing?.manualApplicable !== null ||
-      existing?.manualJustification !== null;
+        const existing = existingControls.find(
+          (item) => item.baselineControlId === baseline.id,
+        );
 
-    const finalApplicable = hasManualOverride
-      ? existing?.manualApplicable ?? control.applicable
-      : control.applicable;
+        const hasManualApplicable = existing?.manualApplicable !== null && existing?.manualApplicable !== undefined;
+        const hasManualJustification =
+          existing?.manualJustification !== null &&
+          existing?.manualJustification !== undefined &&
+          existing.manualJustification.trim() !== "";
 
-    const finalJustification = hasManualOverride
-      ? existing?.manualJustification ?? existing?.justification ?? control.justification
-      : control.justification;
+        const finalApplicable = hasManualApplicable
+          ? existing!.manualApplicable!
+          : control.applicable;
 
-    return {
-      companyId,
-      baselineControlId: baseline.id,
-      ownerName: existing?.ownerName ?? "",
+        const finalJustification = hasManualJustification
+          ? existing!.manualJustification!
+          : control.justification;
 
-      // automatico
-      autoApplicable: control.applicable,
-      autoJustification: control.justification,
+        const finalStatus =
+          existing?.status ??
+          (finalApplicable ? ControlStatus.PLANNED : ControlStatus.NOT_APPLICABLE);
 
-      // override
-      manualApplicable: existing?.manualApplicable ?? null,
-      manualJustification: existing?.manualJustification ?? null,
+        return {
+          companyId,
+          baselineControlId: baseline.id,
+          ownerName: existing?.ownerName ?? "",
 
-      // finale
-      applicable: finalApplicable,
-      justification: finalJustification,
+          autoApplicable: control.applicable,
+          autoJustification: control.justification,
 
-      evidence: existing?.evidence ?? "",
-      status:
-        existing?.status ??
-        (finalApplicable ? ControlStatus.PLANNED : ControlStatus.NOT_APPLICABLE),
-    };
-  }),
-});
+          manualApplicable: existing?.manualApplicable ?? null,
+          manualJustification: existing?.manualJustification ?? null,
+
+          applicable: finalApplicable,
+          justification: finalJustification,
+
+          evidence: existing?.evidence ?? "",
+          status: finalStatus,
+        };
+      }),
+    }),
 
     prisma.companyRisk.createMany({
       data: risks.map((risk) => ({
