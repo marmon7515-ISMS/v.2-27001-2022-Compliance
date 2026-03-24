@@ -104,14 +104,24 @@ async function seedCompany(
     }
 
     await prisma.companyControl.create({
-      data: {
-        companyId: company.id,
-        baselineControlId: baseline.id,
-        ownerName,
-        applicable: control.applicable,
-        justification: control.justification,
-        evidence: "",
-        status: control.applicable ? ControlStatus.PLANNED : ControlStatus.NOT_APPLICABLE,
+  data: {
+    companyId: company.id,
+    baselineControlId: baseline.id,
+    ownerName,
+
+    autoApplicable: control.applicable,
+    autoJustification: control.justification,
+
+    manualApplicable: null,
+    manualJustification: null,
+
+    applicable: control.applicable,
+    justification: control.justification,
+
+    evidence: "",
+    status: control.applicable ? "PLANNED" : "NOT_APPLICABLE",
+  },
+});
       },
     });
   }
