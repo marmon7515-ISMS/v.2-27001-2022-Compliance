@@ -140,21 +140,31 @@ model BaselineDocument {
 }
 
 model CompanyControl {
-  id               String        @id @default(cuid())
-  companyId        String
-  baselineControlId String
-  ownerName        String
+  id                  String        @id @default(cuid())
+  companyId           String
+  baselineControlId   String
+  ownerName           String
 
-  applicable       Boolean       @default(true)
-  justification    String
-  evidence         String        @default("")
-  status           ControlStatus @default(PLANNED)
+  // proposta automatica del motore
+  autoApplicable      Boolean       @default(true)
+  autoJustification   String
 
-  company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  baselineControl  BaselineControl @relation(fields: [baselineControlId], references: [id], onDelete: Cascade)
+  // override manuale auditor
+  manualApplicable    Boolean?
+  manualJustification String?
 
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  // valore operativo attuale
+  applicable          Boolean       @default(true)
+  justification       String
+
+  evidence            String        @default("")
+  status              ControlStatus @default(PLANNED)
+
+  company             Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  baselineControl     BaselineControl @relation(fields: [baselineControlId], references: [id], onDelete: Cascade)
+
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   @@index([companyId])
   @@index([baselineControlId])
