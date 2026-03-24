@@ -6,12 +6,29 @@ type RuleResult = {
   justification: string;
 };
 
+type ProfileTrigger =
+  | "always"
+  | "cloudHosted"
+  | "softwareDevelopment"
+  | "suppliersCritical"
+  | "remoteWorkforce"
+  | "physicalOfficeControl"
+  | "personalDataProcessing"
+  | "specialCategoryData"
+  | "paymentProcessing"
+  | "regulatedMarket"
+  | "businessContinuityRequired"
+  | "mobileDevicesUsed"
+  | "privilegedAccessManaged"
+  | "securityMonitoringNeeded";
+
 function enabled(profile: ProfileInput, flag: keyof ProfileInput): boolean {
   return Boolean(profile[flag]);
 }
 
 function controlRule(profile: ProfileInput, code: string): RuleResult {
   switch (code) {
+    // Supplier controls
     case "A.5.19":
     case "A.5.20":
     case "A.5.21":
@@ -19,58 +36,73 @@ function controlRule(profile: ProfileInput, code: string): RuleResult {
       return profile.suppliersCritical
         ? {
             applicable: true,
-            justification: "Applicabile perché l’organizzazione dipende da fornitori o servizi terzi critici.",
+            justification:
+              "Applicabile perché l’organizzazione dipende da fornitori o servizi terzi critici.",
           }
         : {
             applicable: false,
-            justification: "Non applicabile nel perimetro corrente: non risultano fornitori critici.",
+            justification:
+              "Non applicabile nel perimetro corrente: non risultano fornitori critici.",
           };
 
+    // Cloud
     case "A.5.23":
       return profile.cloudHosted
         ? {
             applicable: true,
-            justification: "Applicabile perché l’organizzazione utilizza servizi cloud nel perimetro ISMS.",
+            justification:
+              "Applicabile perché l’organizzazione utilizza servizi cloud nel perimetro ISMS.",
           }
         : {
             applicable: false,
-            justification: "Non applicabile nel perimetro corrente: non risultano servizi cloud rilevanti.",
+            justification:
+              "Non applicabile nel perimetro corrente: non risultano servizi cloud rilevanti.",
           };
 
+    // Business continuity
     case "A.5.29":
     case "A.5.30":
       return profile.businessContinuityRequired
         ? {
             applicable: true,
-            justification: "Applicabile perché la continuità operativa dei processi richiede preparazione ICT e gestione in discontinuità.",
+            justification:
+              "Applicabile perché la continuità operativa dei processi richiede preparazione ICT e gestione in discontinuità.",
           }
         : {
             applicable: false,
-            justification: "Non prioritario nel perimetro corrente: la continuità operativa ICT non è stata classificata come requisito critico.",
+            justification:
+              "Non prioritario nel perimetro corrente: la continuità operativa ICT non è stata classificata come requisito critico.",
           };
 
+    // Legal / regulatory / contractual requirements
     case "A.5.31":
       return profile.regulatedMarket || profile.personalDataProcessing || profile.paymentProcessing
         ? {
             applicable: true,
-            justification: "Applicabile perché esistono requisiti legali, regolatori o contrattuali rilevanti per il perimetro.",
+            justification:
+              "Applicabile perché esistono requisiti legali, regolatori o contrattuali rilevanti per il perimetro.",
           }
         : {
             applicable: true,
-            justification: "Applicabile come controllo generale di conformità legale e contrattuale.",
+            justification:
+              "Applicabile come controllo generale di conformità legale e contrattuale.",
           };
 
+    // Privacy / PII
     case "A.5.34":
       return profile.personalDataProcessing || profile.specialCategoryData
         ? {
             applicable: true,
-            justification: "Applicabile perché il perimetro include trattamento di dati personali o categorie particolari di dati.",
+            justification:
+              "Applicabile perché il perimetro include trattamento di dati personali o categorie particolari di dati.",
           }
         : {
             applicable: false,
-            justification: "Non applicabile nel perimetro corrente: non risultano trattamenti di dati personali rilevanti.",
+            justification:
+              "Non applicabile nel perimetro corrente: non risultano trattamenti di dati personali rilevanti.",
           };
 
+    // Remote working
     case "A.6.7":
       return profile.remoteWorkforce
         ? {
@@ -79,9 +111,11 @@ function controlRule(profile: ProfileInput, code: string): RuleResult {
           }
         : {
             applicable: false,
-            justification: "Non applicabile nel perimetro corrente: il lavoro remoto non è previsto.",
+            justification:
+              "Non applicabile nel perimetro corrente: il lavoro remoto non è previsto.",
           };
 
+    // Physical controls strictly tied to managed premises
     case "A.7.1":
     case "A.7.2":
     case "A.7.3":
@@ -95,48 +129,102 @@ function controlRule(profile: ProfileInput, code: string): RuleResult {
       return profile.physicalOfficeControl
         ? {
             applicable: true,
-            justification: "Applicabile perché l’organizzazione controlla sedi, locali o aree fisiche rilevanti.",
+            justification:
+              "Applicabile perché l’organizzazione controlla sedi, locali o aree fisiche rilevanti.",
           }
         : {
             applicable: false,
-            justification: "Non applicabile nel perimetro corrente: non risultano aree fisiche sotto controllo diretto rilevanti ai fini ISMS.",
+            justification:
+              "Non applicabile nel perimetro corrente: non risultano aree fisiche sotto controllo diretto rilevanti ai fini ISMS.",
           };
 
+    // Clear desk / clear screen can still apply even without managed premises
+    case "A.7.7":
+      return profile.physicalOfficeControl || profile.remoteWorkforce
+        ? {
+            applicable: true,
+            justification:
+              "Applicabile perché esistono postazioni di lavoro, anche distribuite o in remoto, da proteggere con regole clear desk / clear screen.",
+          }
+        : {
+            applicable: false,
+            justification:
+              "Non applicabile nel perimetro corrente: non risultano postazioni operative rilevanti da presidiare con misure clear desk / clear screen.",
+          };
+
+    // Off-premises assets
     case "A.7.9":
       return profile.remoteWorkforce || profile.mobileDevicesUsed
         ? {
             applicable: true,
-            justification: "Applicabile perché asset informativi sono utilizzati fuori sede.",
+            justification:
+              "Applicabile perché asset informativi o dispositivi sono utilizzati fuori sede.",
           }
         : {
             applicable: false,
-            justification: "Non applicabile nel perimetro corrente: non risultano asset operativi off-premises rilevanti.",
+            justification:
+              "Non applicabile nel perimetro corrente: non risultano asset operativi off-premises rilevanti.",
           };
 
+    // Storage media
+    case "A.7.10":
+      return profile.physicalOfficeControl || profile.mobileDevicesUsed || profile.remoteWorkforce
+        ? {
+            applicable: true,
+            justification:
+              "Applicabile perché l’organizzazione utilizza dispositivi o supporti che possono contenere informazioni da proteggere.",
+          }
+        : {
+            applicable: false,
+            justification:
+              "Non applicabile nel perimetro corrente: non risultano supporti fisici o dispositivi rilevanti da gestire.",
+          };
+
+    // Secure disposal / reuse
+    case "A.7.14":
+      return profile.physicalOfficeControl || profile.mobileDevicesUsed || profile.remoteWorkforce
+        ? {
+            applicable: true,
+            justification:
+              "Applicabile perché esistono apparecchiature o dispositivi che devono essere dismessi o riutilizzati in modo sicuro.",
+          }
+        : {
+            applicable: false,
+            justification:
+              "Non applicabile nel perimetro corrente: non risultano apparecchiature rilevanti da dismettere o riutilizzare.",
+          };
+
+    // Privileged access
     case "A.8.2":
     case "A.8.18":
       return profile.privilegedAccessManaged
         ? {
             applicable: true,
-            justification: "Applicabile perché esistono account o attività con privilegi elevati da governare.",
+            justification:
+              "Applicabile perché esistono account o attività con privilegi elevati da governare.",
           }
         : {
             applicable: false,
-            justification: "Non applicabile nel perimetro corrente: non risultano privilegi elevati rilevanti.",
+            justification:
+              "Non applicabile nel perimetro corrente: non risultano privilegi elevati rilevanti.",
           };
 
+    // Monitoring / logging
     case "A.8.15":
     case "A.8.16":
       return profile.securityMonitoringNeeded
         ? {
             applicable: true,
-            justification: "Applicabile perché il monitoraggio degli eventi di sicurezza è necessario nel perimetro.",
+            justification:
+              "Applicabile perché il monitoraggio degli eventi di sicurezza è necessario nel perimetro.",
           }
         : {
             applicable: false,
-            justification: "Non applicabile nel perimetro corrente: il monitoraggio non è stato classificato come esigenza rilevante.",
+            justification:
+              "Non applicabile nel perimetro corrente: il monitoraggio non è stato classificato come esigenza rilevante.",
           };
 
+    // Secure development
     case "A.8.25":
     case "A.8.26":
     case "A.8.27":
@@ -149,39 +237,25 @@ function controlRule(profile: ProfileInput, code: string): RuleResult {
       return profile.softwareDevelopment
         ? {
             applicable: true,
-            justification: "Applicabile perché il perimetro include sviluppo o manutenzione software.",
+            justification:
+              "Applicabile perché il perimetro include sviluppo o manutenzione software.",
           }
         : {
             applicable: false,
-            justification: "Non applicabile nel perimetro corrente: non risultano attività di sviluppo software.",
+            justification:
+              "Non applicabile nel perimetro corrente: non risultano attività di sviluppo software.",
           };
 
     default:
       return {
         applicable: true,
-        justification: "Applicabile come controllo di baseline generale del sistema di gestione.",
+        justification:
+          "Applicabile come controllo di baseline generale del sistema di gestione.",
       };
   }
 }
 
-function triggerMatches(
-  profile: ProfileInput,
-  trigger:
-    | "always"
-    | "cloudHosted"
-    | "softwareDevelopment"
-    | "suppliersCritical"
-    | "remoteWorkforce"
-    | "physicalOfficeControl"
-    | "personalDataProcessing"
-    | "specialCategoryData"
-    | "paymentProcessing"
-    | "regulatedMarket"
-    | "businessContinuityRequired"
-    | "mobileDevicesUsed"
-    | "privilegedAccessManaged"
-    | "securityMonitoringNeeded",
-): boolean {
+function triggerMatches(profile: ProfileInput, trigger: ProfileTrigger): boolean {
   if (trigger === "always") {
     return true;
   }
