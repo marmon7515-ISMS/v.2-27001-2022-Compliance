@@ -1,12 +1,14 @@
 {
-  "name": "compliance-os-nextjs",
-  "version": "0.2.0",
+  "name": "isms",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma db push && next build",
+    "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "seed": "tsx prisma/seed.ts"
+  },
+  "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
