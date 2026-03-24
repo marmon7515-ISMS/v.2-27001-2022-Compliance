@@ -1,6 +1,61 @@
-import { ProfileInput } from "@/types";
+export type BaselineControl = {
+  code: string;
+  title: string;
+  domain: "Organizational" | "People" | "Physical" | "Technological";
+};
 
-export const BASELINE_CONTROLS = [
+export type BaselineRisk = {
+  key: string;
+  title: string;
+  category: string;
+  asset: string;
+  threat: string;
+  vulnerability: string;
+  likelihood: number;
+  impact: number;
+  residualLikelihood: number;
+  residualImpact: number;
+  treatment: string;
+  trigger:
+    | "always"
+    | "cloudHosted"
+    | "softwareDevelopment"
+    | "suppliersCritical"
+    | "remoteWorkforce"
+    | "physicalOfficeControl"
+    | "personalDataProcessing"
+    | "specialCategoryData"
+    | "paymentProcessing"
+    | "regulatedMarket"
+    | "businessContinuityRequired"
+    | "mobileDevicesUsed"
+    | "privilegedAccessManaged"
+    | "securityMonitoringNeeded";
+};
+
+export type BaselineDocument = {
+  key: string;
+  name: string;
+  category: string;
+  mandatory: boolean;
+  trigger:
+    | "always"
+    | "cloudHosted"
+    | "softwareDevelopment"
+    | "suppliersCritical"
+    | "remoteWorkforce"
+    | "physicalOfficeControl"
+    | "personalDataProcessing"
+    | "specialCategoryData"
+    | "paymentProcessing"
+    | "regulatedMarket"
+    | "businessContinuityRequired"
+    | "mobileDevicesUsed"
+    | "privilegedAccessManaged"
+    | "securityMonitoringNeeded";
+};
+
+export const BASELINE_CONTROLS: BaselineControl[] = [
   { code: "A.5.1", title: "Policies for information security", domain: "Organizational" },
   { code: "A.5.2", title: "Information security roles and responsibilities", domain: "Organizational" },
   { code: "A.5.3", title: "Segregation of duties", domain: "Organizational" },
@@ -34,10 +89,11 @@ export const BASELINE_CONTROLS = [
   { code: "A.5.31", title: "Legal, statutory, regulatory and contractual requirements", domain: "Organizational" },
   { code: "A.5.32", title: "Intellectual property rights", domain: "Organizational" },
   { code: "A.5.33", title: "Protection of records", domain: "Organizational" },
-  { code: "A.5.34", title: "Privacy and protection of personally identifiable information", domain: "Organizational" },
+  { code: "A.5.34", title: "Privacy and protection of PII", domain: "Organizational" },
   { code: "A.5.35", title: "Independent review of information security", domain: "Organizational" },
   { code: "A.5.36", title: "Compliance with policies, rules and standards for information security", domain: "Organizational" },
   { code: "A.5.37", title: "Documented operating procedures", domain: "Organizational" },
+
   { code: "A.6.1", title: "Screening", domain: "People" },
   { code: "A.6.2", title: "Terms and conditions of employment", domain: "People" },
   { code: "A.6.3", title: "Information security awareness, education and training", domain: "People" },
@@ -46,6 +102,7 @@ export const BASELINE_CONTROLS = [
   { code: "A.6.6", title: "Confidentiality or non-disclosure agreements", domain: "People" },
   { code: "A.6.7", title: "Remote working", domain: "People" },
   { code: "A.6.8", title: "Information security event reporting", domain: "People" },
+
   { code: "A.7.1", title: "Physical security perimeters", domain: "Physical" },
   { code: "A.7.2", title: "Physical entry", domain: "Physical" },
   { code: "A.7.3", title: "Securing offices, rooms and facilities", domain: "Physical" },
@@ -60,6 +117,7 @@ export const BASELINE_CONTROLS = [
   { code: "A.7.12", title: "Cabling security", domain: "Physical" },
   { code: "A.7.13", title: "Equipment maintenance", domain: "Physical" },
   { code: "A.7.14", title: "Secure disposal or re-use of equipment", domain: "Physical" },
+
   { code: "A.8.1", title: "User endpoint devices", domain: "Technological" },
   { code: "A.8.2", title: "Privileged access rights", domain: "Technological" },
   { code: "A.8.3", title: "Information access restriction", domain: "Technological" },
@@ -93,183 +151,226 @@ export const BASELINE_CONTROLS = [
   { code: "A.8.31", title: "Separation of development, test and production environments", domain: "Technological" },
   { code: "A.8.32", title: "Change management", domain: "Technological" },
   { code: "A.8.33", title: "Test information", domain: "Technological" },
-  { code: "A.8.34", title: "Protection of information systems during audit testing", domain: "Technological" }
-] as const;
+  { code: "A.8.34", title: "Protection of information systems during audit testing", domain: "Technological" },
+];
 
-export const CONTROL_RULES: Record<string, (profile: ProfileInput) => { applicable: boolean; justification: string }> = {
-  "A.5.23": (profile) => profile.cloudServices
-    ? { applicable: true, justification: "Applicabile perché il cliente usa servizi cloud." }
-    : { applicable: false, justification: "Non applicabile perché il cliente non usa servizi cloud." },
-  "A.8.25": (profile) => profile.softwareDevelopment
-    ? { applicable: true, justification: "Applicabile perché il cliente sviluppa software." }
-    : { applicable: false, justification: "Non applicabile in assenza di sviluppo software interno." },
-  "A.8.26": (profile) => profile.softwareDevelopment
-    ? { applicable: true, justification: "Applicabile perché esistono requisiti di sicurezza applicativa." }
-    : { applicable: false, justification: "Non applicabile in assenza di sviluppo applicativo." },
-  "A.8.27": (profile) => profile.softwareDevelopment
-    ? { applicable: true, justification: "Applicabile per architetture e principi di sviluppo sicuro." }
-    : { applicable: false, justification: "Non applicabile in assenza di attività di sviluppo." },
-  "A.8.28": (profile) => profile.softwareDevelopment
-    ? { applicable: true, justification: "Applicabile perché il cliente sviluppa software." }
-    : { applicable: false, justification: "Non applicabile perché non risultano attività di coding interno." },
-  "A.8.29": (profile) => profile.softwareDevelopment
-    ? { applicable: true, justification: "Applicabile perché serve testing di sicurezza in sviluppo e accettazione." }
-    : { applicable: false, justification: "Non applicabile se non si sviluppa software." },
-  "A.8.30": (profile) => profile.softwareDevelopment
-    ? { applicable: true, justification: "Applicabile se parti dello sviluppo sono affidate a terzi." }
-    : { applicable: false, justification: "Non applicabile in assenza di sviluppo software." },
-  "A.8.31": (profile) => profile.softwareDevelopment
-    ? { applicable: true, justification: "Applicabile per separare sviluppo, test e produzione." }
-    : { applicable: false, justification: "Non applicabile senza ambienti di sviluppo." },
-  "A.6.7": (profile) => profile.remoteWorkforce
-    ? { applicable: true, justification: "Applicabile perché il personale opera in remoto o ibrido." }
-    : { applicable: false, justification: "Può essere escluso se non esiste lavoro remoto." },
-  "A.7.1": (profile) => profile.physicalOfficeControl
-    ? { applicable: true, justification: "Applicabile perché il cliente controlla locali e perimetri fisici." }
-    : { applicable: false, justification: "Non applicabile se non gestisce sedi o aree protette proprie." },
-  "A.7.2": (profile) => profile.physicalOfficeControl
-    ? { applicable: true, justification: "Applicabile per accessi fisici a sedi o locali." }
-    : { applicable: false, justification: "Non applicabile in assenza di controllo fisico diretto." },
-  "A.7.3": (profile) => profile.physicalOfficeControl
-    ? { applicable: true, justification: "Applicabile per la sicurezza di uffici e sale." }
-    : { applicable: false, justification: "Non applicabile in assenza di locali sotto controllo diretto." },
-  "A.7.4": (profile) => profile.physicalOfficeControl
-    ? { applicable: true, justification: "Applicabile per monitoraggio fisico di sedi o aree." }
-    : { applicable: false, justification: "Non applicabile se il cliente non gestisce direttamente la sicurezza fisica." },
-  "A.7.5": (profile) => profile.physicalOfficeControl
-    ? { applicable: true, justification: "Applicabile per minacce ambientali e fisiche." }
-    : { applicable: false, justification: "Non applicabile in assenza di aree fisiche gestite." },
-  "A.7.6": (profile) => profile.physicalOfficeControl
-    ? { applicable: true, justification: "Applicabile per aree sicure." }
-    : { applicable: false, justification: "Non applicabile senza aree sicure gestite." },
-  "A.7.11": (profile) => profile.physicalOfficeControl
-    ? { applicable: true, justification: "Applicabile se il cliente gestisce infrastrutture e utilities locali." }
-    : { applicable: false, justification: "Non applicabile se strutture e utilities sono in carico a terzi." },
-  "A.7.12": (profile) => profile.physicalOfficeControl
-    ? { applicable: true, justification: "Applicabile se il cablaggio è sotto responsabilità diretta." }
-    : { applicable: false, justification: "Non applicabile in assenza di cablaggi gestiti direttamente." },
-  "A.5.19": (profile) => profile.suppliersCritical
-    ? { applicable: true, justification: "Applicabile perché esistono fornitori rilevanti." }
-    : { applicable: false, justification: "Può essere ridotto se non esistono fornitori critici nel perimetro." },
-  "A.5.20": (profile) => profile.suppliersCritical
-    ? { applicable: true, justification: "Applicabile perché i fornitori richiedono clausole di sicurezza." }
-    : { applicable: false, justification: "Non applicabile se non esistono accordi con fornitori critici." },
-  "A.5.21": (profile) => profile.suppliersCritical
-    ? { applicable: true, justification: "Applicabile per supply chain ICT rilevante." }
-    : { applicable: false, justification: "Non applicabile se la supply chain ICT non è rilevante nel perimetro." },
-  "A.5.22": (profile) => profile.suppliersCritical
-    ? { applicable: true, justification: "Applicabile per monitorare servizi di fornitori critici." }
-    : { applicable: false, justification: "Non applicabile in assenza di fornitori critici." },
-  "A.5.30": (profile) => profile.criticalProcesses
-    ? { applicable: true, justification: "Applicabile per processi critici e continuità operativa." }
-    : { applicable: false, justification: "Meno rilevante se non esistono processi critici o SLA stringenti." },
-  "A.5.34": (profile) => profile.personalData
-    ? { applicable: true, justification: "Applicabile perché il cliente tratta dati personali." }
-    : { applicable: false, justification: "Può essere escluso se non tratta dati personali nel perimetro." }
-};
-
-export const BASELINE_RISKS = [
+export const BASELINE_RISKS: BaselineRisk[] = [
   {
     key: "phishing",
     title: "Phishing su account aziendali",
     category: "Identity",
-    asset: "Email e workspace cloud",
+    asset: "Email e identità digitali",
     threat: "Furto credenziali",
     vulnerability: "Bassa consapevolezza utenti",
     likelihood: 4,
     impact: 4,
+    residualLikelihood: 2,
+    residualImpact: 3,
     treatment: "Mitigate",
-    trigger: "always"
+    trigger: "always",
   },
   {
-    key: "endpoint-loss",
-    title: "Perdita dati da endpoint non cifrati",
-    category: "Endpoint",
-    asset: "Laptop e dispositivi mobili",
-    threat: "Smarrimento o furto",
-    vulnerability: "Cifratura incompleta",
-    likelihood: 3,
-    impact: 5,
-    treatment: "Mitigate",
-    trigger: "always"
-  },
-  {
-    key: "cloud-outage",
-    title: "Interruzione di servizio del fornitore cloud",
-    category: "Third party",
-    asset: "Piattaforma cloud",
-    threat: "Outage fornitore",
-    vulnerability: "Assenza piano di fallback",
-    likelihood: 3,
-    impact: 4,
-    treatment: "Transfer",
-    trigger: "cloud"
-  },
-  {
-    key: "secure-dev",
-    title: "Codice vulnerabile in produzione",
-    category: "Application security",
-    asset: "Applicazioni custom",
-    threat: "Exploit software",
-    vulnerability: "Secure SDLC assente",
+    key: "cloud-misconfiguration",
+    title: "Errata configurazione di servizi cloud",
+    category: "Cloud",
+    asset: "Piattaforme SaaS / IaaS / PaaS",
+    threat: "Esposizione dati o interruzione servizio",
+    vulnerability: "Configurazioni non controllate",
     likelihood: 4,
     impact: 5,
+    residualLikelihood: 2,
+    residualImpact: 3,
     treatment: "Mitigate",
-    trigger: "software"
+    trigger: "cloudHosted",
   },
   {
     key: "supplier-breach",
-    title: "Violazione di sicurezza presso fornitore critico",
-    category: "Supply chain",
-    asset: "Servizi terzi",
-    threat: "Compromissione fornitore",
+    title: "Violazione sicurezza presso fornitore critico",
+    category: "Third Party",
+    asset: "Servizi esternalizzati",
+    threat: "Compromissione catena di fornitura",
     vulnerability: "Due diligence insufficiente",
     likelihood: 3,
-    impact: 4,
+    impact: 5,
+    residualLikelihood: 2,
+    residualImpact: 3,
     treatment: "Mitigate",
-    trigger: "suppliers"
+    trigger: "suppliersCritical",
   },
   {
-    key: "business-disruption",
-    title: "Interruzione di processo critico",
-    category: "Business continuity",
-    asset: "Processi core",
-    threat: "Guasto o indisponibilità",
-    vulnerability: "Contromisure di continuità insufficienti",
+    key: "remote-endpoint-loss",
+    title: "Perdita o compromissione di endpoint remoti",
+    category: "Endpoint",
+    asset: "Laptop e workstation remote",
+    threat: "Furto, smarrimento, accesso non autorizzato",
+    vulnerability: "Controlli endpoint insufficienti",
+    likelihood: 4,
+    impact: 4,
+    residualLikelihood: 2,
+    residualImpact: 3,
+    treatment: "Mitigate",
+    trigger: "remoteWorkforce",
+  },
+  {
+    key: "physical-intrusion",
+    title: "Accesso fisico non autorizzato",
+    category: "Physical",
+    asset: "Uffici, archivi, locali tecnici",
+    threat: "Intrusione o manomissione",
+    vulnerability: "Controlli fisici inadeguati",
+    likelihood: 3,
+    impact: 4,
+    residualLikelihood: 2,
+    residualImpact: 3,
+    treatment: "Mitigate",
+    trigger: "physicalOfficeControl",
+  },
+  {
+    key: "secure-dev-gap",
+    title: "Difetti di sicurezza nello sviluppo software",
+    category: "Application",
+    asset: "Applicazioni sviluppate internamente",
+    threat: "Vulnerabilità in produzione",
+    vulnerability: "SDLC non strutturato",
+    likelihood: 4,
+    impact: 5,
+    residualLikelihood: 2,
+    residualImpact: 3,
+    treatment: "Mitigate",
+    trigger: "softwareDevelopment",
+  },
+  {
+    key: "privacy-noncompliance",
+    title: "Trattamento dati personali non conforme",
+    category: "Compliance",
+    asset: "Dati personali",
+    threat: "Violazione normativa / data breach",
+    vulnerability: "Controlli privacy incompleti",
     likelihood: 3,
     impact: 5,
+    residualLikelihood: 2,
+    residualImpact: 3,
     treatment: "Mitigate",
-    trigger: "critical"
-  }
-] as const;
+    trigger: "personalDataProcessing",
+  },
+  {
+    key: "special-data-exposure",
+    title: "Esposizione di categorie particolari di dati",
+    category: "Privacy",
+    asset: "Dati particolari",
+    threat: "Disclosure non autorizzata",
+    vulnerability: "Misure rafforzate insufficienti",
+    likelihood: 3,
+    impact: 5,
+    residualLikelihood: 1,
+    residualImpact: 3,
+    treatment: "Mitigate",
+    trigger: "specialCategoryData",
+  },
+  {
+    key: "payment-fraud",
+    title: "Frode o abuso nei processi di pagamento",
+    category: "Financial",
+    asset: "Processi di pagamento",
+    threat: "Manipolazione transazioni",
+    vulnerability: "Controlli applicativi e segregazione deboli",
+    likelihood: 3,
+    impact: 5,
+    residualLikelihood: 2,
+    residualImpact: 3,
+    treatment: "Mitigate",
+    trigger: "paymentProcessing",
+  },
+  {
+    key: "regulatory-noncompliance",
+    title: "Inadempimento regolatorio",
+    category: "Compliance",
+    asset: "Processi soggetti a regolazione",
+    threat: "Sanzioni o blocchi operativi",
+    vulnerability: "Mappatura requisiti incompleta",
+    likelihood: 3,
+    impact: 5,
+    residualLikelihood: 2,
+    residualImpact: 3,
+    treatment: "Mitigate",
+    trigger: "regulatedMarket",
+  },
+  {
+    key: "continuity-disruption",
+    title: "Interruzione di processi critici",
+    category: "Continuity",
+    asset: "Processi essenziali di business",
+    threat: "Indisponibilità ICT",
+    vulnerability: "Piani di continuità non maturi",
+    likelihood: 3,
+    impact: 5,
+    residualLikelihood: 2,
+    residualImpact: 3,
+    treatment: "Mitigate",
+    trigger: "businessContinuityRequired",
+  },
+  {
+    key: "mobile-device-exposure",
+    title: "Compromissione di dispositivi mobili",
+    category: "Mobile",
+    asset: "Smartphone e tablet aziendali",
+    threat: "Smarrimento, malware, accesso abusivo",
+    vulnerability: "Hardening e MDM insufficienti",
+    likelihood: 3,
+    impact: 4,
+    residualLikelihood: 2,
+    residualImpact: 3,
+    treatment: "Mitigate",
+    trigger: "mobileDevicesUsed",
+  },
+  {
+    key: "privileged-access-abuse",
+    title: "Abuso di privilegi elevati",
+    category: "Access",
+    asset: "Account amministrativi",
+    threat: "Uso improprio o compromissione",
+    vulnerability: "Governance privilegi insufficiente",
+    likelihood: 3,
+    impact: 5,
+    residualLikelihood: 2,
+    residualImpact: 3,
+    treatment: "Mitigate",
+    trigger: "privilegedAccessManaged",
+  },
+  {
+    key: "monitoring-gap",
+    title: "Mancata rilevazione di eventi di sicurezza",
+    category: "Monitoring",
+    asset: "Log e sistemi di monitoraggio",
+    threat: "Incidente non rilevato tempestivamente",
+    vulnerability: "Logging/monitoring insufficienti",
+    likelihood: 4,
+    impact: 4,
+    residualLikelihood: 2,
+    residualImpact: 3,
+    treatment: "Mitigate",
+    trigger: "securityMonitoringNeeded",
+  },
+];
 
-export const BASELINE_DOCUMENTS = [
-  { key: "policy", name: "Information Security Policy", category: "Policy", mandatory: true, trigger: "always" },
-  { key: "risk-method", name: "Risk Assessment Methodology", category: "Methodology", mandatory: true, trigger: "always" },
-  { key: "risk-register", name: "Risk Register", category: "Register", mandatory: true, trigger: "always" },
-  { key: "soa", name: "Statement of Applicability", category: "Register", mandatory: true, trigger: "always" },
-  { key: "asset-inventory", name: "Asset Inventory", category: "Register", mandatory: true, trigger: "always" },
-  { key: "access-control", name: "Access Control Procedure", category: "Procedure", mandatory: true, trigger: "always" },
-  { key: "incident", name: "Incident Response Procedure", category: "Procedure", mandatory: true, trigger: "always" },
-  { key: "internal-audit", name: "Internal Audit Procedure", category: "Procedure", mandatory: true, trigger: "always" },
-  { key: "management-review", name: "Management Review Minutes Template", category: "Template", mandatory: true, trigger: "always" },
-  { key: "supplier", name: "Supplier Security Assessment", category: "Template", mandatory: false, trigger: "suppliers" },
-  { key: "cloud", name: "Cloud Security Procedure", category: "Procedure", mandatory: false, trigger: "cloud" },
-  { key: "secure-dev", name: "Secure Development Procedure", category: "Procedure", mandatory: false, trigger: "software" },
-  { key: "bcp", name: "Business Continuity Procedure", category: "Procedure", mandatory: false, trigger: "critical" },
-  { key: "remote", name: "Remote Working Policy", category: "Policy", mandatory: false, trigger: "remote" },
-  { key: "physical", name: "Physical Security Procedure", category: "Procedure", mandatory: false, trigger: "physical" }
-] as const;
-
-export const DEFAULT_PROFILE: ProfileInput = {
-  cloudServices: true,
-  softwareDevelopment: false,
-  suppliersCritical: true,
-  remoteWorkforce: true,
-  physicalOfficeControl: false,
-  criticalProcesses: true,
-  personalData: true,
-  regulatedSector: false,
-  customerDescription: "PMI che eroga servizi digitali B2B con personale in remoto e servizi in cloud.",
-  uploadedContext: ""
-};
+export const BASELINE_DOCUMENTS: BaselineDocument[] = [
+  { key: "isms-policy", name: "Politica per la sicurezza delle informazioni", category: "Policy", mandatory: true, trigger: "always" },
+  { key: "risk-method", name: "Metodologia di valutazione del rischio", category: "Metodo", mandatory: true, trigger: "always" },
+  { key: "soa", name: "Statement of Applicability", category: "Registro", mandatory: true, trigger: "always" },
+  { key: "incident", name: "Procedura di gestione incidenti", category: "Procedura", mandatory: true, trigger: "always" },
+  { key: "access-control", name: "Procedura di controllo accessi", category: "Procedura", mandatory: true, trigger: "always" },
+  { key: "asset-inventory", name: "Inventario degli asset informativi", category: "Registro", mandatory: true, trigger: "always" },
+  { key: "supplier-security", name: "Procedura sicurezza fornitori", category: "Procedura", mandatory: false, trigger: "suppliersCritical" },
+  { key: "cloud-security", name: "Procedura sicurezza servizi cloud", category: "Procedura", mandatory: false, trigger: "cloudHosted" },
+  { key: "secure-development", name: "Procedura sviluppo sicuro", category: "Procedura", mandatory: false, trigger: "softwareDevelopment" },
+  { key: "remote-working", name: "Policy lavoro remoto", category: "Policy", mandatory: false, trigger: "remoteWorkforce" },
+  { key: "physical-security", name: "Procedura sicurezza fisica", category: "Procedura", mandatory: false, trigger: "physicalOfficeControl" },
+  { key: "privacy", name: "Procedura protezione dati personali", category: "Procedura", mandatory: false, trigger: "personalDataProcessing" },
+  { key: "special-data", name: "Misure rafforzate per dati particolari", category: "Procedura", mandatory: false, trigger: "specialCategoryData" },
+  { key: "payments", name: "Controlli di sicurezza sui pagamenti", category: "Procedura", mandatory: false, trigger: "paymentProcessing" },
+  { key: "regulatory", name: "Matrice requisiti legali e regolatori", category: "Registro", mandatory: false, trigger: "regulatedMarket" },
+  { key: "business-continuity", name: "Procedura continuità operativa ICT", category: "Procedura", mandatory: false, trigger: "businessContinuityRequired" },
+  { key: "mobile-device", name: "Policy dispositivi mobili", category: "Policy", mandatory: false, trigger: "mobileDevicesUsed" },
+  { key: "privileged-access", name: "Procedura gestione privilegi", category: "Procedura", mandatory: false, trigger: "privilegedAccessManaged" },
+  { key: "logging-monitoring", name: "Procedura logging e monitoraggio", category: "Procedura", mandatory: false, trigger: "securityMonitoringNeeded" },
+];
