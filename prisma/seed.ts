@@ -1,6 +1,12 @@
 // prisma/seed.ts
 
-import { PrismaClient, UserRole, ControlStatus, DocumentStatus, RiskStatus } from "@prisma/client";
+import {
+  ControlStatus,
+  DocumentStatus,
+  PrismaClient,
+  RiskStatus,
+  UserRole,
+} from "@prisma/client";
 
 import { BASELINE_CONTROLS, BASELINE_DOCUMENTS, BASELINE_RISKS } from "../lib/baseline";
 import { deriveControls, deriveDocuments, deriveRisks } from "../lib/rules";
@@ -29,7 +35,8 @@ async function seedBaseline() {
       title: control.title,
       domain: control.domain,
       defaultApplicable: true,
-      rationale: "Baseline Annex A ISO/IEC 27001:2022; l'applicabilità finale dipende dal profilo aziendale.",
+      rationale:
+        "Baseline Annex A ISO/IEC 27001:2022; l'applicabilità finale dipende dal profilo aziendale.",
     })),
   });
 
@@ -104,24 +111,24 @@ async function seedCompany(
     }
 
     await prisma.companyControl.create({
-  data: {
-    companyId: company.id,
-    baselineControlId: baseline.id,
-    ownerName,
+      data: {
+        companyId: company.id,
+        baselineControlId: baseline.id,
+        ownerName,
 
-    autoApplicable: control.applicable,
-    autoJustification: control.justification,
+        autoApplicable: control.applicable,
+        autoJustification: control.justification,
 
-    manualApplicable: null,
-    manualJustification: null,
+        manualApplicable: null,
+        manualJustification: null,
 
-    applicable: control.applicable,
-    justification: control.justification,
+        applicable: control.applicable,
+        justification: control.justification,
 
-    evidence: "",
-    status: control.applicable ? "PLANNED" : "NOT_APPLICABLE",
-  },
-});
+        evidence: "",
+        status: control.applicable
+          ? ControlStatus.PLANNED
+          : ControlStatus.NOT_APPLICABLE,
       },
     });
   }
@@ -135,7 +142,9 @@ async function seedCompany(
         required: document.required,
         reason: document.reason,
         ownerName,
-        status: document.required ? DocumentStatus.DRAFT : DocumentStatus.NOT_REQUIRED,
+        status: document.required
+          ? DocumentStatus.DRAFT
+          : DocumentStatus.NOT_REQUIRED,
       },
     });
   }
@@ -257,7 +266,8 @@ async function main() {
     "Giulia Rinaldi",
     "SaaS",
     {
-      customerDescription: "PMI SaaS con lavoro ibrido, sviluppo software interno, servizi cloud e fornitori critici.",
+      customerDescription:
+        "PMI SaaS con lavoro ibrido, sviluppo software interno, servizi cloud e fornitori critici.",
       industry: "SaaS",
       companySize: "SMB",
       remoteWorkforce: true,
@@ -283,7 +293,8 @@ async function main() {
     "Marco Conti",
     "Logistics",
     {
-      customerDescription: "Azienda logistica con sedi operative, terminali distribuiti, fornitori critici e continuità operativa rilevante.",
+      customerDescription:
+        "Azienda logistica con sedi operative, terminali distribuiti, fornitori critici e continuità operativa rilevante.",
       industry: "Logistics",
       companySize: "Mid-Market",
       remoteWorkforce: false,
