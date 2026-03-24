@@ -1,6 +1,10 @@
 // prisma/seed.ts
 
-import { PrismaClient, UserRole } from "@prisma/client";
+import { PrismaClient, UserRole, ControlStatus, DocumentStatus, RiskStatus } from "@prisma/client";
+
+import { BASELINE_CONTROLS, BASELINE_DOCUMENTS, BASELINE_RISKS } from "../lib/baseline";
+import { deriveControls, deriveDocuments, deriveRisks } from "../lib/rules";
+import type { ProfileInput } from "../lib/profile-input";
 
 const prisma = new PrismaClient();
 
@@ -20,169 +24,42 @@ async function resetDatabase() {
 
 async function seedBaseline() {
   await prisma.baselineControl.createMany({
-    data: [
-      {
-        code: "A.5.1",
-        title: "Policies for information security",
-        domain: "Organizational",
-        defaultApplicable: true,
-        rationale: "Baseline generale; verificare applicabilità sul profilo cliente.",
-      },
-      {
-        code: "A.5.7",
-        title: "Threat intelligence",
-        domain: "Organizational",
-        defaultApplicable: true,
-        rationale: "Monitorare minacce rilevanti per il contesto aziendale.",
-      },
-      {
-        code: "A.5.23",
-        title: "Information security for use of cloud services",
-        domain: "Technological",
-        defaultApplicable: true,
-        rationale: "Gestire i rischi collegati ai servizi cloud.",
-      },
-      {
-        code: "A.5.30",
-        title: "ICT readiness for business continuity",
-        domain: "Organizational",
-        defaultApplicable: true,
-        rationale: "Supportare continuità operativa e ripristino.",
-      },
-      {
-        code: "A.8.1",
-        title: "User endpoint devices",
-        domain: "Technological",
-        defaultApplicable: true,
-        rationale: "Proteggere laptop, desktop e dispositivi mobili.",
-      },
-      {
-        code: "A.8.9",
-        title: "Configuration management",
-        domain: "Technological",
-        defaultApplicable: true,
-        rationale: "Ridurre errori e deviazioni di configurazione.",
-      },
-      {
-        code: "A.8.12",
-        title: "Data leakage prevention",
-        domain: "Technological",
-        defaultApplicable: true,
-        rationale: "Proteggere dati sensibili e personali.",
-      },
-      {
-        code: "A.8.13",
-        title: "Information backup",
-        domain: "Technological",
-        defaultApplicable: true,
-        rationale: "Garantire disponibilità e recuperabilità delle informazioni.",
-      },
-      {
-        code: "A.8.15",
-        title: "Logging",
-        domain: "Technological",
-        defaultApplicable: true,
-        rationale: "Abilitare audit trail e investigazione eventi.",
-      },
-      {
-        code: "A.8.16",
-        title: "Monitoring activities",
-        domain: "Technological",
-        defaultApplicable: true,
-        rationale: "Rilevare attività anomale e incidenti.",
-      },
-    ],
+    data: BASELINE_CONTROLS.map((control) => ({
+      code: control.code,
+      title: control.title,
+      domain: control.domain,
+      defaultApplicable: true,
+      rationale: "Baseline Annex A ISO/IEC 27001:2022; l'applicabilità finale dipende dal profilo aziendale.",
+    })),
   });
 
   await prisma.baselineRisk.createMany({
-    data: [
-      {
-        key: "phishing",
-        title: "Phishing su account aziendali",
-        category: "Identity",
-        asset: "Email e workspace cloud",
-        threat: "Furto credenziali",
-        vulnerability: "Bassa consapevolezza utenti",
-        likelihood: 4,
-        impact: 4,
-        residualLikelihood: 2,
-        residualImpact: 2,
-        treatment: "Mitigate",
-      },
-      {
-        key: "ransomware",
-        title: "Ransomware su endpoint",
-        category: "Endpoint",
-        asset: "Laptop e workstation",
-        threat: "Cifratura malevola",
-        vulnerability: "Patch management incompleto",
-        likelihood: 4,
-        impact: 5,
-        residualLikelihood: 2,
-        residualImpact: 3,
-        treatment: "Mitigate",
-      },
-      {
-        key: "cloud-misconfig",
-        title: "Errore di configurazione cloud",
-        category: "Cloud",
-        asset: "Tenant cloud e dati aziendali",
-        threat: "Esposizione dati",
-        vulnerability: "Controlli IAM e review insufficienti",
-        likelihood: 3,
-        impact: 5,
-        residualLikelihood: 2,
-        residualImpact: 2,
-        treatment: "Mitigate",
-      },
-    ],
+    data: BASELINE_RISKS.map((risk) => ({
+      key: risk.key,
+      title: risk.title,
+      category: risk.category,
+      asset: risk.asset,
+      threat: risk.threat,
+      vulnerability: risk.vulnerability,
+      likelihood: risk.likelihood,
+      impact: risk.impact,
+      residualLikelihood: risk.residualLikelihood,
+      residualImpact: risk.residualImpact,
+      treatment: risk.treatment,
+    })),
   });
 
   await prisma.baselineDocument.createMany({
-    data: [
-      {
-        key: "infosec-policy",
-        name: "Information Security Policy",
-        category: "POLICY",
-        required: true,
-        reason: "Documento base richiesto per l'ISMS.",
-      },
-      {
-        key: "risk-register",
-        name: "Risk Register",
-        category: "REGISTER",
-        required: true,
-        reason: "Registro dei rischi necessario per la gestione del rischio.",
-      },
-      {
-        key: "soa",
-        name: "Statement of Applicability",
-        category: "REGISTER",
-        required: true,
-        reason: "Documento centrale per la dichiarazione di applicabilità.",
-      },
-      {
-        key: "incident-response",
-        name: "Incident Response Procedure",
-        category: "PROCEDURE",
-        required: true,
-        reason: "Gestione strutturata degli incidenti di sicurezza.",
-      },
-      {
-        key: "backup-procedure",
-        name: "Backup Procedure",
-        category: "PROCEDURE",
-        required: true,
-        reason: "Ripristino dati e continuità del servizio.",
-      },
-      {
-        key: "access-control-policy",
-        name: "Access Control Policy",
-        category: "POLICY",
-        required: true,
-        reason: "Gestione accessi e privilegi.",
-      },
-    ],
+    data: BASELINE_DOCUMENTS.map((doc) => ({
+      key: doc.key,
+      name: doc.name,
+      category: doc.category,
+      required: doc.trigger === "always",
+      reason:
+        doc.trigger === "always"
+          ? "Documento di baseline richiesto per tutte le organizzazioni del perimetro."
+          : "Documento applicabile in funzione delle caratteristiche del profilo aziendale.",
+    })),
   });
 }
 
@@ -192,24 +69,7 @@ async function seedCompany(
   framework: string,
   ownerName: string,
   industry: string,
-  profile: {
-    customerDescription: string;
-    industry: string;
-    companySize: string;
-    remoteWorkforce: boolean;
-    physicalOfficeControl: boolean;
-    softwareDevelopment: boolean;
-    cloudHosted: boolean;
-    personalDataProcessing: boolean;
-    specialCategoryData: boolean;
-    paymentProcessing: boolean;
-    regulatedMarket: boolean;
-    suppliersCritical: boolean;
-    businessContinuityRequired: boolean;
-    mobileDevicesUsed: boolean;
-    privilegedAccessManaged: boolean;
-    securityMonitoringNeeded: boolean;
-  },
+  profile: ProfileInput,
 ) {
   const company = await prisma.company.create({
     data: {
@@ -232,67 +92,31 @@ async function seedCompany(
     orderBy: { code: "asc" },
   });
 
-  for (const control of baselineControls) {
-    const applicable =
-      control.code !== "A.5.30" ? true : profile.businessContinuityRequired;
+  const derivedControls = deriveControls(profile);
+  const derivedDocuments = deriveDocuments(profile);
+  const derivedRisks = deriveRisks(profile);
+
+  for (const control of derivedControls) {
+    const baseline = baselineControls.find((item) => item.code === control.code);
+
+    if (!baseline) {
+      throw new Error(`Missing baseline control ${control.code} during seed`);
+    }
 
     await prisma.companyControl.create({
       data: {
         companyId: company.id,
-        baselineControlId: control.id,
+        baselineControlId: baseline.id,
         ownerName,
-        applicable,
-        justification: applicable
-          ? "Applicabile al contesto aziendale."
-          : "Non prioritario nel contesto attuale.",
+        applicable: control.applicable,
+        justification: control.justification,
         evidence: "",
-        status: applicable ? "PLANNED" : "NOT_APPLICABLE",
+        status: control.applicable ? ControlStatus.PLANNED : ControlStatus.NOT_APPLICABLE,
       },
     });
   }
 
-  const documents = [
-    {
-      name: "Information Security Policy",
-      category: "POLICY",
-      required: true,
-      reason: "Documento base richiesto per l'ISMS.",
-    },
-    {
-      name: "Risk Register",
-      category: "REGISTER",
-      required: true,
-      reason: "Registro dei rischi necessario per la gestione del rischio.",
-    },
-    {
-      name: "Statement of Applicability",
-      category: "REGISTER",
-      required: true,
-      reason: "Documento centrale per la dichiarazione di applicabilità.",
-    },
-    {
-      name: "Incident Response Procedure",
-      category: "PROCEDURE",
-      required: true,
-      reason: "Necessaria per la gestione degli incidenti.",
-    },
-    {
-      name: "Backup Procedure",
-      category: "PROCEDURE",
-      required: true,
-      reason: "Necessaria per continuità e recupero dati.",
-    },
-    {
-      name: "Secure Development Procedure",
-      category: "PROCEDURE",
-      required: profile.softwareDevelopment,
-      reason: profile.softwareDevelopment
-        ? "Richiesta perché l'azienda sviluppa software."
-        : "Non richiesta perché l'azienda non sviluppa software.",
-    },
-  ];
-
-  for (const document of documents) {
+  for (const document of derivedDocuments) {
     await prisma.companyDocument.create({
       data: {
         companyId: company.id,
@@ -301,61 +125,27 @@ async function seedCompany(
         required: document.required,
         reason: document.reason,
         ownerName,
-        status: document.required ? "DRAFT" : "NOT_REQUIRED",
+        status: document.required ? DocumentStatus.DRAFT : DocumentStatus.NOT_REQUIRED,
       },
     });
   }
 
-  const risks = [
-    {
-      title: "Phishing su account aziendali",
-      category: "Identity",
-      asset: "Email e workspace cloud",
-      threat: "Furto credenziali",
-      vulnerability: "Bassa consapevolezza utenti",
-      likelihood: 4,
-      impact: 4,
-      residualLikelihood: 2,
-      residualImpact: 2,
-      treatment: "Mitigate",
-      ownerName,
-      status: "OPEN" as const,
-    },
-    {
-      title: "Ransomware su endpoint",
-      category: "Endpoint",
-      asset: "Laptop e workstation",
-      threat: "Cifratura malevola",
-      vulnerability: "Patch management incompleto",
-      likelihood: 4,
-      impact: 5,
-      residualLikelihood: 2,
-      residualImpact: 3,
-      treatment: "Mitigate",
-      ownerName,
-      status: "OPEN" as const,
-    },
-    {
-      title: "Errore di configurazione cloud",
-      category: "Cloud",
-      asset: "Tenant cloud e dati aziendali",
-      threat: "Esposizione dati",
-      vulnerability: "Review IAM insufficiente",
-      likelihood: 3,
-      impact: 5,
-      residualLikelihood: 2,
-      residualImpact: 2,
-      treatment: "Mitigate",
-      ownerName,
-      status: "TREATMENT_PLANNED" as const,
-    },
-  ];
-
-  for (const risk of risks) {
+  for (const risk of derivedRisks) {
     await prisma.companyRisk.create({
       data: {
         companyId: company.id,
-        ...risk,
+        title: risk.title,
+        category: risk.category,
+        asset: risk.asset,
+        threat: risk.threat,
+        vulnerability: risk.vulnerability,
+        likelihood: risk.likelihood,
+        impact: risk.impact,
+        residualLikelihood: risk.residualLikelihood,
+        residualImpact: risk.residualImpact,
+        treatment: risk.treatment,
+        ownerName,
+        status: RiskStatus.OPEN,
       },
     });
   }
@@ -446,6 +236,7 @@ async function seedUsers(acmeId: string, betaId: string) {
 
 async function main() {
   console.log("Seeding database...");
+
   await resetDatabase();
   await seedBaseline();
 
@@ -456,7 +247,7 @@ async function main() {
     "Giulia Rinaldi",
     "SaaS",
     {
-      customerDescription: "PMI SaaS con lavoro ibrido e servizi cloud.",
+      customerDescription: "PMI SaaS con lavoro ibrido, sviluppo software interno, servizi cloud e fornitori critici.",
       industry: "SaaS",
       companySize: "SMB",
       remoteWorkforce: true,
@@ -482,9 +273,9 @@ async function main() {
     "Marco Conti",
     "Logistics",
     {
-      customerDescription: "Azienda logistica con sedi operative e terminali distribuiti.",
+      customerDescription: "Azienda logistica con sedi operative, terminali distribuiti, fornitori critici e continuità operativa rilevante.",
       industry: "Logistics",
-      companySize: "Mid-market",
+      companySize: "Mid-Market",
       remoteWorkforce: false,
       physicalOfficeControl: true,
       softwareDevelopment: false,
