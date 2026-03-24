@@ -1,15 +1,4 @@
-export type ProfileInput = {
-  cloudServices: boolean;
-  softwareDevelopment: boolean;
-  suppliersCritical: boolean;
-  remoteWorkforce: boolean;
-  physicalOfficeControl: boolean;
-  criticalProcesses: boolean;
-  personalData: boolean;
-  regulatedSector: boolean;
-  customerDescription: string;
-  uploadedContext: string;
-};
+export type { ProfileInput } from "@/lib/profile-input";
 
 export type SessionUser = {
   id: string;
@@ -18,7 +7,7 @@ export type SessionUser = {
   companyId: string | null;
 };
 
-export type ProfileSuggestion = Partial<ProfileInput> & {
+export type ProfileSuggestion = Partial<import("@/lib/profile-input").ProfileInput> & {
   reasons: string[];
   summary: string;
 };
