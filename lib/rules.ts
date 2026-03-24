@@ -1,79 +1,235 @@
-import { BASELINE_CONTROLS, BASELINE_DOCUMENTS, BASELINE_RISKS, CONTROL_RULES } from "@/lib/baseline";
-import { ProfileInput } from "@/types";
+import { BASELINE_CONTROLS, BASELINE_DOCUMENTS, BASELINE_RISKS } from "@/lib/baseline";
+import type { ProfileInput } from "@/lib/profile-input";
 
-type Trigger = "always" | "cloud" | "software" | "suppliers" | "remote" | "physical" | "critical";
+type RuleResult = {
+  applicable: boolean;
+  justification: string;
+};
 
-function triggerMatches(profile: ProfileInput, trigger: Trigger): boolean {
-  switch (trigger) {
-    case "always":
-      return true;
-    case "cloud":
-      return profile.cloudServices;
-    case "software":
-      return profile.softwareDevelopment;
-    case "suppliers":
-      return profile.suppliersCritical;
-    case "remote":
-      return profile.remoteWorkforce;
-    case "physical":
-      return profile.physicalOfficeControl;
-    case "critical":
-      return profile.criticalProcesses;
+function enabled(profile: ProfileInput, flag: keyof ProfileInput): boolean {
+  return Boolean(profile[flag]);
+}
+
+function controlRule(profile: ProfileInput, code: string): RuleResult {
+  switch (code) {
+    case "A.5.19":
+    case "A.5.20":
+    case "A.5.21":
+    case "A.5.22":
+      return profile.suppliersCritical
+        ? {
+            applicable: true,
+            justification: "Applicabile perché l’organizzazione dipende da fornitori o servizi terzi critici.",
+          }
+        : {
+            applicable: false,
+            justification: "Non applicabile nel perimetro corrente: non risultano fornitori critici.",
+          };
+
+    case "A.5.23":
+      return profile.cloudHosted
+        ? {
+            applicable: true,
+            justification: "Applicabile perché l’organizzazione utilizza servizi cloud nel perimetro ISMS.",
+          }
+        : {
+            applicable: false,
+            justification: "Non applicabile nel perimetro corrente: non risultano servizi cloud rilevanti.",
+          };
+
+    case "A.5.29":
+    case "A.5.30":
+      return profile.businessContinuityRequired
+        ? {
+            applicable: true,
+            justification: "Applicabile perché la continuità operativa dei processi richiede preparazione ICT e gestione in discontinuità.",
+          }
+        : {
+            applicable: false,
+            justification: "Non prioritario nel perimetro corrente: la continuità operativa ICT non è stata classificata come requisito critico.",
+          };
+
+    case "A.5.31":
+      return profile.regulatedMarket || profile.personalDataProcessing || profile.paymentProcessing
+        ? {
+            applicable: true,
+            justification: "Applicabile perché esistono requisiti legali, regolatori o contrattuali rilevanti per il perimetro.",
+          }
+        : {
+            applicable: true,
+            justification: "Applicabile come controllo generale di conformità legale e contrattuale.",
+          };
+
+    case "A.5.34":
+      return profile.personalDataProcessing || profile.specialCategoryData
+        ? {
+            applicable: true,
+            justification: "Applicabile perché il perimetro include trattamento di dati personali o categorie particolari di dati.",
+          }
+        : {
+            applicable: false,
+            justification: "Non applicabile nel perimetro corrente: non risultano trattamenti di dati personali rilevanti.",
+          };
+
+    case "A.6.7":
+      return profile.remoteWorkforce
+        ? {
+            applicable: true,
+            justification: "Applicabile perché è presente lavoro remoto o ibrido.",
+          }
+        : {
+            applicable: false,
+            justification: "Non applicabile nel perimetro corrente: il lavoro remoto non è previsto.",
+          };
+
+    case "A.7.1":
+    case "A.7.2":
+    case "A.7.3":
+    case "A.7.4":
+    case "A.7.5":
+    case "A.7.6":
+    case "A.7.8":
+    case "A.7.11":
+    case "A.7.12":
+    case "A.7.13":
+      return profile.physicalOfficeControl
+        ? {
+            applicable: true,
+            justification: "Applicabile perché l’organizzazione controlla sedi, locali o aree fisiche rilevanti.",
+          }
+        : {
+            applicable: false,
+            justification: "Non applicabile nel perimetro corrente: non risultano aree fisiche sotto controllo diretto rilevanti ai fini ISMS.",
+          };
+
+    case "A.7.9":
+      return profile.remoteWorkforce || profile.mobileDevicesUsed
+        ? {
+            applicable: true,
+            justification: "Applicabile perché asset informativi sono utilizzati fuori sede.",
+          }
+        : {
+            applicable: false,
+            justification: "Non applicabile nel perimetro corrente: non risultano asset operativi off-premises rilevanti.",
+          };
+
+    case "A.8.2":
+    case "A.8.18":
+      return profile.privilegedAccessManaged
+        ? {
+            applicable: true,
+            justification: "Applicabile perché esistono account o attività con privilegi elevati da governare.",
+          }
+        : {
+            applicable: false,
+            justification: "Non applicabile nel perimetro corrente: non risultano privilegi elevati rilevanti.",
+          };
+
+    case "A.8.15":
+    case "A.8.16":
+      return profile.securityMonitoringNeeded
+        ? {
+            applicable: true,
+            justification: "Applicabile perché il monitoraggio degli eventi di sicurezza è necessario nel perimetro.",
+          }
+        : {
+            applicable: false,
+            justification: "Non applicabile nel perimetro corrente: il monitoraggio non è stato classificato come esigenza rilevante.",
+          };
+
+    case "A.8.25":
+    case "A.8.26":
+    case "A.8.27":
+    case "A.8.28":
+    case "A.8.29":
+    case "A.8.30":
+    case "A.8.31":
+    case "A.8.32":
+    case "A.8.33":
+      return profile.softwareDevelopment
+        ? {
+            applicable: true,
+            justification: "Applicabile perché il perimetro include sviluppo o manutenzione software.",
+          }
+        : {
+            applicable: false,
+            justification: "Non applicabile nel perimetro corrente: non risultano attività di sviluppo software.",
+          };
+
+    default:
+      return {
+        applicable: true,
+        justification: "Applicabile come controllo di baseline generale del sistema di gestione.",
+      };
   }
 }
 
-export function deriveDocuments(profile: ProfileInput) {
-  return BASELINE_DOCUMENTS.map((doc) => {
-    const required = triggerMatches(profile, doc.trigger as Trigger);
-    const reason = required
-      ? doc.trigger === "always"
-        ? "Documento base richiesto dalla baseline generale."
-        : "Documento richiesto dal profilo operativo del cliente."
-      : "Documento non necessario in base al profilo attuale del cliente.";
+function triggerMatches(
+  profile: ProfileInput,
+  trigger:
+    | "always"
+    | "cloudHosted"
+    | "softwareDevelopment"
+    | "suppliersCritical"
+    | "remoteWorkforce"
+    | "physicalOfficeControl"
+    | "personalDataProcessing"
+    | "specialCategoryData"
+    | "paymentProcessing"
+    | "regulatedMarket"
+    | "businessContinuityRequired"
+    | "mobileDevicesUsed"
+    | "privilegedAccessManaged"
+    | "securityMonitoringNeeded",
+): boolean {
+  if (trigger === "always") {
+    return true;
+  }
 
-    return {
-      ...doc,
-      required,
-      reason
-    };
-  });
+  return enabled(profile, trigger);
 }
 
 export function deriveControls(profile: ProfileInput) {
   return BASELINE_CONTROLS.map((control) => {
-    const rule = CONTROL_RULES[control.code];
-    if (rule) {
-      const result = rule(profile);
-      return {
-        ...control,
-        applicable: result.applicable,
-        justification: result.justification
-      };
-    }
+    const result = controlRule(profile, control.code);
 
     return {
       ...control,
-      applicable: true,
-      justification: "Applicabile dalla baseline generale; richiede conferma sul perimetro cliente."
+      defaultApplicable: result.applicable,
+      applicable: result.applicable,
+      justification: result.justification,
+    };
+  });
+}
+
+export function deriveDocuments(profile: ProfileInput) {
+  return BASELINE_DOCUMENTS.map((doc) => {
+    const required = triggerMatches(profile, doc.trigger);
+
+    return {
+      ...doc,
+      required,
+      reason: required
+        ? doc.trigger === "always"
+          ? "Documento di baseline richiesto per tutte le organizzazioni del perimetro."
+          : "Documento richiesto in base alle caratteristiche del profilo aziendale."
+        : "Documento non richiesto in base al profilo aziendale corrente.",
     };
   });
 }
 
 export function deriveRisks(profile: ProfileInput) {
-  return BASELINE_RISKS.filter((risk) => triggerMatches(profile, risk.trigger as Trigger)).map((risk) => ({
+  return BASELINE_RISKS.filter((risk) => triggerMatches(profile, risk.trigger)).map((risk) => ({
     ...risk,
-    residualLikelihood: Math.max(1, risk.likelihood - 1),
-    residualImpact: Math.max(1, risk.impact - 1)
   }));
 }
 
-export function score(likelihood: number, impact: number) {
+export function score(likelihood: number, impact: number): number {
   return likelihood * impact;
 }
 
-export function scoreLabel(value: number) {
-  if (value >= 15) return "Critical";
-  if (value >= 8) return "High";
-  if (value >= 4) return "Medium";
-  return "Low";
+export function scoreLabel(value: number): string {
+  if (value >= 15) return "Alto";
+  if (value >= 8) return "Medio";
+  return "Basso";
 }
