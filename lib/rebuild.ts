@@ -1,12 +1,13 @@
 import { ControlStatus, DocumentStatus, RiskStatus } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { deriveControls, deriveDocuments, deriveRisks } from "@/lib/rules";
-import { ProfileInput } from "@/types";
+import type { ProfileInput } from "@/lib/profile-input";
 
 export async function rebuildCompanyFromProfile(companyId: string, profile: ProfileInput) {
-  const [baselineControls] = await Promise.all([
-    prisma.baselineControl.findMany({ orderBy: { code: "asc" } })
-  ]);
+  const baselineControls = await prisma.baselineControl.findMany({
+    orderBy: { code: "asc" },
+  });
 
   const controls = deriveControls(profile);
   const risks = deriveRisks(profile);
@@ -16,14 +17,17 @@ export async function rebuildCompanyFromProfile(companyId: string, profile: Prof
     prisma.companyProfile.upsert({
       where: { companyId },
       update: profile,
-      create: { companyId, ...profile }
+      create: { companyId, ...profile },
     }),
+
     prisma.companyControl.deleteMany({ where: { companyId } }),
     prisma.companyRisk.deleteMany({ where: { companyId } }),
     prisma.companyDocument.deleteMany({ where: { companyId } }),
+
     prisma.companyControl.createMany({
       data: controls.map((control) => {
         const baseline = baselineControls.find((item) => item.code === control.code);
+
         if (!baseline) {
           throw new Error(`Missing baseline control ${control.code}`);
         }
@@ -31,14 +35,15 @@ export async function rebuildCompanyFromProfile(companyId: string, profile: Prof
         return {
           companyId,
           baselineControlId: baseline.id,
-          ownerName: null,
-          status: control.applicable ? ControlStatus.PLANNED : ControlStatus.NOT_APPLICABLE,
+          ownerName: "",
           applicable: control.applicable,
           justification: control.justification,
-          evidence: ""
+          evidence: "",
+          status: control.applicable ? ControlStatus.PLANNED : ControlStatus.NOT_APPLICABLE,
         };
-      })
+      }),
     }),
+
     prisma.companyRisk.createMany({
       data: risks.map((risk) => ({
         companyId,
@@ -52,9 +57,11 @@ export async function rebuildCompanyFromProfile(companyId: string, profile: Prof
         residualLikelihood: risk.residualLikelihood,
         residualImpact: risk.residualImpact,
         treatment: risk.treatment,
-        status: RiskStatus.OPEN
-      }))
+        ownerName: "",
+        status: RiskStatus.OPEN,
+      })),
     }),
+
     prisma.companyDocument.createMany({
       data: documents.map((doc) => ({
         companyId,
@@ -62,8 +69,9 @@ export async function rebuildCompanyFromProfile(companyId: string, profile: Prof
         category: doc.category,
         required: doc.required,
         reason: doc.reason,
-        status: doc.required ? DocumentStatus.DRAFT : DocumentStatus.NOT_REQUIRED
-      }))
-    })
+        ownerName: "",
+        status: doc.required ? DocumentStatus.DRAFT : DocumentStatus.NOT_REQUIRED,
+      })),
+    }),
   ]);
 }
