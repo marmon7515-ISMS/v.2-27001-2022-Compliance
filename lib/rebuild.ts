@@ -24,25 +24,61 @@ export async function rebuildCompanyFromProfile(companyId: string, profile: Prof
     prisma.companyRisk.deleteMany({ where: { companyId } }),
     prisma.companyDocument.deleteMany({ where: { companyId } }),
 
-    prisma.companyControl.createMany({
-      data: controls.map((control) => {
-        const baseline = baselineControls.find((item) => item.code === control.code);
+    // carico eventuali controlli già esistenti per preservare override auditor
+const existingControls = await prisma.companyControl.findMany({
+  where: { companyId },
+});
 
-        if (!baseline) {
-          throw new Error(`Missing baseline control ${control.code}`);
-        }
+await prisma.companyControl.deleteMany({ where: { companyId } });
 
-        return {
-          companyId,
-          baselineControlId: baseline.id,
-          ownerName: "",
-          applicable: control.applicable,
-          justification: control.justification,
-          evidence: "",
-          status: control.applicable ? ControlStatus.PLANNED : ControlStatus.NOT_APPLICABLE,
-        };
-      }),
-    }),
+await prisma.companyControl.createMany({
+  data: controls.map((control) => {
+    const baseline = baselineControls.find((item) => item.code === control.code);
+
+    if (!baseline) {
+      throw new Error(`Missing baseline control ${control.code}`);
+    }
+
+    const existing = existingControls.find(
+      (c) => c.baselineControlId === baseline.id,
+    );
+
+    const hasManualOverride =
+      existing?.manualApplicable !== null ||
+      existing?.manualJustification !== null;
+
+    const finalApplicable = hasManualOverride
+      ? existing?.manualApplicable ?? control.applicable
+      : control.applicable;
+
+    const finalJustification = hasManualOverride
+      ? existing?.manualJustification ?? existing?.justification ?? control.justification
+      : control.justification;
+
+    return {
+      companyId,
+      baselineControlId: baseline.id,
+      ownerName: existing?.ownerName ?? "",
+
+      // automatico
+      autoApplicable: control.applicable,
+      autoJustification: control.justification,
+
+      // override
+      manualApplicable: existing?.manualApplicable ?? null,
+      manualJustification: existing?.manualJustification ?? null,
+
+      // finale
+      applicable: finalApplicable,
+      justification: finalJustification,
+
+      evidence: existing?.evidence ?? "",
+      status:
+        existing?.status ??
+        (finalApplicable ? ControlStatus.PLANNED : ControlStatus.NOT_APPLICABLE),
+    };
+  }),
+});
 
     prisma.companyRisk.createMany({
       data: risks.map((risk) => ({
